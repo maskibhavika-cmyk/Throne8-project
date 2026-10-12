@@ -47,9 +47,21 @@ router.get("/test", (req, res) => {
 router.post("/orders", createPaymentOrder);
 router.patch("/bookings/:bookingId/complete", completeBooking);
 router.get("/:id", getPaymentStatus);
-router.post("/refunds", createRefundRequest);
-router.get("/earnings/:mentorId", getMentorEarnings);
-router.get("/payouts/:mentorId", getMentorPayouts);
+router.post("/refunds", authMiddleware, createRefundRequest);
+
+router.get(
+  "/earnings/:mentorId",
+  authMiddleware,
+  authorizeRoles("mentor"),
+  getMentorEarnings
+);
+
+router.get(
+  "/payouts/:mentorId",
+  authMiddleware,
+  authorizeRoles("mentor"),
+  getMentorPayouts
+);
 router.patch("/:paymentId/fail", markPaymentFailed);
 
 router.patch(
@@ -58,5 +70,6 @@ router.patch(
   authorizeRoles("admin"),
   updateEligibleEarnings
 );
+router.post("/orders", authMiddleware, createPaymentOrder);
 router.post("/verify", verifyPayment);
 module.exports = router;

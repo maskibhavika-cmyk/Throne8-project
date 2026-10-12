@@ -37,6 +37,30 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
+    // Student can create only their own booking
+    const loggedInUserId = req.user?._id || req.user?.id;
+
+    if (
+      !loggedInUserId ||
+      String(loggedInUserId) !== String(studentId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only create your own booking",
+      });
+    }
+
+    // Validate session date
+    const parsedSessionDate = new Date(sessionDate);
+
+    if (Number.isNaN(parsedSessionDate.getTime()) ||
+        parsedSessionDate <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid future session date",
+      });
+    }
+
     const mentorAccount = await MentorAccount.findOne({
       mentor: mentorId,
     });
@@ -44,13 +68,23 @@ const createPaymentOrder = async (req, res) => {
     const commissionRateBps =
       mentorAccount?.commissionRateBps ?? 2000;
 
+    if (
+      !Number.isSafeInteger(commissionRateBps) ||
+      commissionRateBps < 0 ||
+      commissionRateBps > 10000
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid mentor commission rate",
+      });
+    }
+
     const commissionPaise = Math.floor(
       (amountPaise * commissionRateBps + 5000) / 10000
     );
 
     const mentorGrossPaise = amountPaise - commissionPaise;
 
-    // Create actual Razorpay order
     const razorpayOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
@@ -64,7 +98,7 @@ const createPaymentOrder = async (req, res) => {
     const booking = await Booking.create({
       student: studentId,
       mentor: mentorId,
-      sessionDate,
+      sessionDate: parsedSessionDate,
       amountPaise,
       commissionRateBps,
       commissionPaise,
@@ -90,6 +124,7 @@ const createPaymentOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Create payment order error:", error.message);
+
     return res.status(500).json({
       success: false,
       message: "Unable to create payment order",
