@@ -11,8 +11,6 @@ const razorpay = new Razorpay({
 
 const verifyPayment = async (req, res) => {
   try {
-    console.log("VERIFY BODY:", req.body);
-
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -37,7 +35,7 @@ const verifyPayment = async (req, res) => {
     if (!payment) {
       return res.status(404).json({
         success: false,
-        message: "Payment record not found for this order",
+        message: "Payment record not found",
       });
     }
 
@@ -71,7 +69,7 @@ const verifyPayment = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Payment details do not match or payment is not captured",
+        message: "Payment details do not match",
       });
     }
 
@@ -96,11 +94,14 @@ const verifyPayment = async (req, res) => {
 
     if (
       payment.status === "PAID" &&
-      booking.paymentStatus === "PAID"
+      booking.paymentStatus === "PAID" &&
+      payment.razorpayPaymentId === razorpay_payment_id
     ) {
       return res.status(200).json({
         success: true,
         message: "Payment already verified",
+        paymentStatus: "PAID",
+        bookingStatus: booking.status,
       });
     }
 
@@ -111,7 +112,7 @@ const verifyPayment = async (req, res) => {
     ) {
       return res.status(409).json({
         success: false,
-        message: "Booking or payment is not in a payable state",
+        message: "Booking or payment is not payable",
       });
     }
 
@@ -123,7 +124,6 @@ const verifyPayment = async (req, res) => {
 
     booking.paymentStatus = "PAID";
     booking.status = "CONFIRMED";
-
     await booking.save();
 
     return res.status(200).json({
@@ -135,7 +135,6 @@ const verifyPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Verify payment error:", error.message);
-
     return res.status(500).json({
       success: false,
       message: "Unable to verify payment",

@@ -1,41 +1,16 @@
+
 const express = require("express");
 const router = express.Router();
 
-const {
-  getMentorPayouts,
-} = require("../controllers/payoutController");
-const {
-  createRefundRequest,
-} = require("../controllers/refundController");
-
-const {
-  getMentorEarnings,
-} = require("../controllers/earningController");
-
-const {
-  createPaymentOrder,
-} = require("../controllers/paymentController");
-
-const {
-  getPaymentStatus,
-} = require("../controllers/paymentStatusController");
-const {
-  completeBooking,
-} = require("../controllers/completeBookingController");
-const {
-  markPaymentFailed,
-} = require("../controllers/paymentFailureController");
-
-const {
-  updateEligibleEarnings,
-} = require("../controllers/earningEligibilityController");
-const {
-  authMiddleware,
-  authorizeRoles,
-} = require("../middleware/authMiddleware");
-const {
-  verifyPayment,
-} = require("../controllers/verifyPaymentController");
+const { getMentorPayouts } = require("../controllers/payoutController");
+const { createRefundRequest } = require("../controllers/refundController");
+const { getMentorEarnings } = require("../controllers/earningController");
+const { createPaymentOrder } = require("../controllers/paymentController");
+const { getPaymentStatus } = require("../controllers/paymentStatusController");
+const { markPaymentFailed } = require("../controllers/paymentFailureController");
+const { updateEligibleEarnings } = require("../controllers/earningEligibilityController");
+const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware");
+const { verifyPayment } = require("../controllers/verifyPaymentController");
 
 router.get("/test", (req, res) => {
   res.json({
@@ -44,11 +19,19 @@ router.get("/test", (req, res) => {
   });
 });
 
-router.post("/orders", createPaymentOrder);
-router.patch("/bookings/:bookingId/complete", completeBooking);
-router.get("/:id", getPaymentStatus);
+// Create payment order
+router.post("/orders", authMiddleware, createPaymentOrder);
+
+// Verify payment
+router.post("/verify", authMiddleware, verifyPayment);
+
+// Check payment status
+router.get("/:id", authMiddleware, getPaymentStatus);
+
+// Request refund
 router.post("/refunds", authMiddleware, createRefundRequest);
 
+// Mentor earnings
 router.get(
   "/earnings/:mentorId",
   authMiddleware,
@@ -56,20 +39,23 @@ router.get(
   getMentorEarnings
 );
 
+// Mentor payouts
 router.get(
   "/payouts/:mentorId",
   authMiddleware,
   authorizeRoles("mentor"),
   getMentorPayouts
 );
-router.patch("/:paymentId/fail", markPaymentFailed);
 
+// Admin: update eligible earnings
 router.patch(
   "/earnings/update-eligible",
   authMiddleware,
   authorizeRoles("admin"),
   updateEligibleEarnings
 );
-router.post("/orders", authMiddleware, createPaymentOrder);
-router.post("/verify", verifyPayment);
+
+// Payment failure endpoint (controller currently rejects manual updates)
+router.patch("/:paymentId/fail", authMiddleware, markPaymentFailed);
+
 module.exports = router;

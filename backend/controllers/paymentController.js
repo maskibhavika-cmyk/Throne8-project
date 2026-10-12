@@ -38,7 +38,10 @@ const createPaymentOrder = async (req, res) => {
     }
 
     // Student can create only their own booking
-    const loggedInUserId = req.user?._id || req.user?.id;
+    const loggedInUserId =
+  req.user?._id ||
+  req.user?.id ||
+  req.user?.userId;
 
     if (
       !loggedInUserId ||

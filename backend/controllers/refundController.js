@@ -1,3 +1,5 @@
+
+const mongoose = require("mongoose");
 const Refund = require("../models/Refund");
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
@@ -5,13 +7,15 @@ const Booking = require("../models/Booking");
 const createRefundRequest = async (req, res) => {
   try {
     const { bookingId, paymentId, amountPaise, reason } = req.body;
+    const userId = req.user?._id || req.user?.id;
 
     if (
-      !bookingId ||
-      !paymentId ||
+      !mongoose.Types.ObjectId.isValid(bookingId) ||
+      !mongoose.Types.ObjectId.isValid(paymentId) ||
       !Number.isSafeInteger(amountPaise) ||
       amountPaise <= 0 ||
-      !reason?.trim()
+      typeof reason !== "string" ||
+      !reason.trim()
     ) {
       return res.status(400).json({
         success: false,
@@ -26,6 +30,17 @@ const createRefundRequest = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Booking or payment not found",
+      });
+    }
+
+    // Only booking student or admin can request a refund.
+    if (
+      req.user?.role !== "admin" &&
+      String(booking.student) !== String(userId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
       });
     }
 
@@ -44,21 +59,21 @@ const createRefundRequest = async (req, res) => {
     }
 
     const existingRefunds = await Refund.find({
-  payment: payment._id,
-  status: { $in: ["PENDING", "PROCESSING", "COMPLETED"] },
-});
+      payment: payment._id,
+      status: { $in: ["PENDING", "PROCESSING", "COMPLETED"] },
+    });
 
-const totalRefundPaise = existingRefunds.reduce(
-  (total, refund) => total + refund.amountPaise,
-  0
-);
+    const totalRefundPaise = existingRefunds.reduce(
+      (total, refund) => total + refund.amountPaise,
+      0
+    );
 
-if (totalRefundPaise + amountPaise > payment.amountPaise) {
-  return res.status(400).json({
-    success: false,
-    message: "Total refund amount exceeds remaining payment amount",
-  });
-}
+    if (totalRefundPaise + amountPaise > payment.amountPaise) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund exceeds remaining payment amount",
+      });
+    }
 
     const refund = await Refund.create({
       booking: booking._id,
@@ -73,9 +88,10 @@ if (totalRefundPaise + amountPaise > payment.amountPaise) {
       refund,
     });
   } catch (error) {
+    console.error("Create refund request error:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to create refund request",
     });
   }
 };

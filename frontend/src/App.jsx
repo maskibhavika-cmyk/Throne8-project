@@ -7,19 +7,20 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-
+import Bookings from "./pages/mentor/Bookings";
 import Payment from "./pages/Payment";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
-import "./App.css";
 import Users from "./pages/Users";
-import Bookings from "./pages/Bookings";
+
 import Payments from "./pages/Payments";
+import Earnings from "./pages/mentor/Earnings";
+import Payouts from "./pages/mentor/Payouts";
+import "./App.css";
 
 function Navbar() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -30,9 +31,7 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link className="logo" to="/">
-        THRONE8
-      </Link>
+      <Link className="logo" to="/">THRONE8</Link>
 
       <div className="nav-links">
         <Link to="/">Home</Link>
@@ -49,7 +48,11 @@ function Navbar() {
             )}
 
             {user.role === "mentor" && (
-              <Link to="/mentor-dashboard">Dashboard</Link>
+              <>
+                <Link to="/mentor-dashboard">Dashboard</Link>
+                <Link to="/mentor-earnings">Earnings</Link>
+                <Link to="/mentor-payouts">Payouts</Link>
+              </>
             )}
 
             {user.role === "admin" && (
@@ -73,12 +76,7 @@ function Home() {
 
       <section className="hero" id="home">
         <p className="tagline">YOUR CAREER. YOUR FUTURE.</p>
-
-        <h1>
-          Learn from Experts.
-          <br />
-          Grow with Mentors.
-        </h1>
+        <h1>Learn from Experts.<br />Grow with Mentors.</h1>
 
         <p className="hero-text">
           Connect with experienced mentors, book one-to-one sessions,
@@ -89,9 +87,7 @@ function Home() {
           Open Dashboard
         </Link>
 
-        <p>
-          <a href="#payment">Book a Session</a>
-        </p>
+        <p><a href="#payment">Book a Session</a></p>
       </section>
 
       <section className="features" id="about">
@@ -100,23 +96,17 @@ function Home() {
         <div className="feature-grid">
           <article className="feature-card">
             <h3>Expert Mentors</h3>
-            <p>
-              Learn from experienced professionals and get career guidance.
-            </p>
+            <p>Learn from experienced professionals and get career guidance.</p>
           </article>
 
           <article className="feature-card">
             <h3>Easy Booking</h3>
-            <p>
-              Book your mentorship session through a simple process.
-            </p>
+            <p>Book your mentorship session through a simple process.</p>
           </article>
 
           <article className="feature-card">
             <h3>Secure Payments</h3>
-            <p>
-              Pay for your session and view your booking confirmation.
-            </p>
+            <p>Pay for your session and view your booking confirmation.</p>
           </article>
         </div>
       </section>
@@ -145,18 +135,15 @@ function Dashboard({ role, title, description }) {
     if (user.role === "mentor") {
       return <Navigate to="/mentor-dashboard" replace />;
     }
-
     if (user.role === "admin") {
       return <Navigate to="/admin-dashboard" replace />;
     }
-
     return <Navigate to="/student-dashboard" replace />;
   }
 
   return (
     <div className="app">
       <Navbar />
-
       <div className="auth-page">
         <div className="auth-card">
           <h1>{title}</h1>
@@ -171,9 +158,7 @@ function Dashboard({ role, title, description }) {
             </Link>
           )}
 
-          <p>
-            <Link to="/">Go to Home</Link>
-          </p>
+          <p><Link to="/">Go to Home</Link></p>
         </div>
       </div>
     </div>
@@ -195,6 +180,25 @@ function ProtectedAdminRoute({ children }) {
   return children;
 }
 
+function ProtectedMentorPage({ children }) {
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== "mentor") {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <div className="app">
+      <Navbar />
+      {children}
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -226,43 +230,67 @@ function App() {
           }
         />
 
-       
-<Route
-  path="/admin-dashboard"
-  element={
-    <ProtectedAdminRoute>
-      <AdminDashboard />
-    </ProtectedAdminRoute>
-  }
-/>
+        <Route
+          path="/mentor-earnings"
+          element={
+            <ProtectedMentorPage>
+              <Earnings />
+            </ProtectedMentorPage>
+          }
+        />
 
-<Route
-  path="/admin-users"
-  element={
-    <ProtectedAdminRoute>
-      <Users />
-    </ProtectedAdminRoute>
-  }
-/>
+        <Route
+          path="/mentor-payouts"
+          element={
+            <ProtectedMentorPage>
+              <Payouts />
+            </ProtectedMentorPage>
+          }
+        />
 
-<Route
-  path="/admin-bookings"
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedAdminRoute>
+              <AdminDashboard />
+            </ProtectedAdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin-users"
+          element={
+            <ProtectedAdminRoute>
+              <Users />
+            </ProtectedAdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin-bookings"
+          element={
+            <ProtectedAdminRoute>
+              <Bookings />
+            </ProtectedAdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin-payments"
+          element={
+            <ProtectedAdminRoute>
+              <Payments />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+  path="/mentor-bookings"
   element={
-    <ProtectedAdminRoute>
+    <ProtectedMentorPage>
       <Bookings />
-    </ProtectedAdminRoute>
+    </ProtectedMentorPage>
   }
 />
-
-<Route
-  path="/admin-payments"
-  element={
-    <ProtectedAdminRoute>
-      <Payments />
-    </ProtectedAdminRoute>
-  }
-/>
-
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

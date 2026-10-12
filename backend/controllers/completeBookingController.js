@@ -27,12 +27,15 @@ const getBookingById = async (req, res) => {
       });
     }
 
+    const userId =
+      req.user?._id ||
+      req.user?.id ||
+      req.user?.userId;
+
     // Students can view only their own booking.
-    // Mentors can view only bookings assigned to them.
     if (
-      req.user &&
-      req.user.role === "student" &&
-      String(booking.student) !== String(req.user._id || req.user.id)
+      req.user?.role === "student" &&
+      String(booking.student) !== String(userId)
     ) {
       return res.status(403).json({
         success: false,
@@ -40,11 +43,10 @@ const getBookingById = async (req, res) => {
       });
     }
 
+    // Mentors can view only their own bookings.
     if (
-      req.user &&
-      req.user.role === "mentor" &&
-      String(booking.mentor._id) !==
-        String(req.user._id || req.user.id)
+      req.user?.role === "mentor" &&
+      String(booking.mentor?._id) !== String(userId)
     ) {
       return res.status(403).json({
         success: false,
@@ -52,7 +54,10 @@ const getBookingById = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ success: true, booking });
+    return res.status(200).json({
+      success: true,
+      booking,
+    });
   } catch (error) {
     console.error("Get booking error:", error.message);
     return res.status(500).json({
@@ -83,18 +88,23 @@ const completeBooking = async (req, res) => {
       });
     }
 
-    // Only the assigned mentor or admin can complete the booking.
+    const userId =
+      req.user?._id ||
+      req.user?.id ||
+      req.user?.userId;
+
+    // Only the assigned mentor or admin can complete a booking.
     if (
       req.user?.role !== "admin" &&
       (
         req.user?.role !== "mentor" ||
-        String(booking.mentor) !==
-          String(req.user?._id || req.user?.id)
+        String(booking.mentor) !== String(userId)
       )
     ) {
       return res.status(403).json({
         success: false,
-        message: "Only the assigned mentor or admin can complete this booking",
+        message:
+          "Only the assigned mentor or admin can complete this booking",
       });
     }
 
@@ -108,6 +118,14 @@ const completeBooking = async (req, res) => {
       });
     }
 
+    // Do not complete a session before its scheduled date/time.
+    if (new Date(booking.sessionDate) > new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "The session time has not arrived yet",
+      });
+    }
+
     if (booking.completedAt) {
       return res.status(409).json({
         success: false,
@@ -117,13 +135,10 @@ const completeBooking = async (req, res) => {
 
     const completedAt = new Date();
     const payoutEligibleAt = new Date(completedAt);
-
-    // 15 calendar days, using UTC date arithmetic.
     payoutEligibleAt.setUTCDate(
       payoutEligibleAt.getUTCDate() + 15
     );
 
-    // Keep earnings on hold if a refund is pending or processing.
     const pendingRefund = await Refund.exists({
       booking: booking._id,
       status: { $in: ["PENDING", "PROCESSING"] },
@@ -132,6 +147,7 @@ const completeBooking = async (req, res) => {
     booking.status = "COMPLETED";
     booking.completedAt = completedAt;
     booking.payoutEligibleAt = payoutEligibleAt;
+
     await booking.save();
 
     const earning = await Earning.findOneAndUpdate(
@@ -141,16 +157,14 @@ const completeBooking = async (req, res) => {
           booking: booking._id,
           mentor: booking.mentor,
           amountPaise: booking.mentorGrossPaise,
-          status: "PENDING",
+          status: pendingRefund ? "ON_HOLD" : "PENDING",
           eligibleAt: payoutEligibleAt,
         },
       },
       { upsert: true, new: true }
     );
 
-    // Do not mark earning eligible here.
-    // The eligibility job checks the 15-day date and refund status.
-    if (pendingRefund && earning.status === "ELIGIBLE") {
+    if (pendingRefund && earning.status !== "ON_HOLD") {
       earning.status = "ON_HOLD";
       await earning.save();
     }
@@ -170,4 +184,7 @@ const completeBooking = async (req, res) => {
   }
 };
 
-module.exports = { completeBooking, getBookingById };
+module.exports = {
+  completeBooking,
+  getBookingById,
+};

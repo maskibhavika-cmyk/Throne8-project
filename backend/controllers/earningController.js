@@ -1,13 +1,39 @@
 
+const mongoose = require("mongoose");
 const Earning = require("../models/Earning");
 
 const getMentorEarnings = async (req, res) => {
   try {
     const { mentorId } = req.params;
+    const userId =
+  req.user?._id ||
+  req.user?.id ||
+  req.user?.userId;
+    if (!mongoose.Types.ObjectId.isValid(mentorId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid mentor ID",
+      });
+    }
+
+    if (
+      req.user?.role !== "admin" &&
+      (req.user?.role !== "mentor" ||
+        String(userId) !== String(mentorId))
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+    console.log("Logged-in user:", req.user);
+console.log("Requested mentorId:", mentorId);
 
     const earnings = await Earning.find({
       mentor: mentorId,
-    }).populate("booking", "sessionDate status amountPaise");
+    })
+      .populate("booking", "sessionDate status paymentStatus amountPaise")
+      .sort({ createdAt: -1 });
 
     const totalByStatus = {
       pendingPaise: 0,
@@ -17,7 +43,7 @@ const getMentorEarnings = async (req, res) => {
       reversedPaise: 0,
     };
 
-    earnings.forEach((earning) => {
+    for (const earning of earnings) {
       if (earning.status === "PENDING") {
         totalByStatus.pendingPaise += earning.amountPaise;
       } else if (earning.status === "ON_HOLD") {
@@ -29,7 +55,7 @@ const getMentorEarnings = async (req, res) => {
       } else if (earning.status === "REVERSED") {
         totalByStatus.reversedPaise += earning.amountPaise;
       }
-    });
+    }
 
     return res.status(200).json({
       success: true,
@@ -37,9 +63,10 @@ const getMentorEarnings = async (req, res) => {
       earnings,
     });
   } catch (error) {
+    console.error("Get mentor earnings error:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to fetch mentor earnings",
     });
   }
 };

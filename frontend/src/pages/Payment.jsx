@@ -3,43 +3,37 @@ import { useEffect, useState } from "react";
 
 const API = "http://localhost:5000/api/v1";
 
-const BOOKING_ID = "6acb3832aeb9619ba1f19be8";
-const PAYMENT_ID = "6acb3832aeb9619ba1f19be9";
-
 function Payment() {
   const [loading, setLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
   const [booking, setBooking] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Existing payment aur booking status check
+  const getToken = () => localStorage.getItem("token");
+
+  const authHeaders = () => {
+    const token = getToken();
+
+    if (!token) {
+      throw new Error("Student login nahi mila. Please login again.");
+    }
+
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const [paymentResponse, bookingResponse] = await Promise.all([
-          fetch(`${API}/payments/${PAYMENT_ID}`),
-          fetch(`${API}/bookings/${BOOKING_ID}`),
-        ]);
+        const token = getToken();
+        if (!token) return;
 
-        const paymentData = await paymentResponse.json();
-        const bookingData = await bookingResponse.json();
-
-        if (bookingResponse.ok && bookingData.success) {
-          setBooking(bookingData.booking);
-        }
-
-        if (
-          paymentResponse.ok &&
-          paymentData.success &&
-          paymentData.paymentStatus === "PAID"
-        ) {
-          setPaymentStatus("PAID");
-        }
+        // Purani hard-coded booking/payment IDs hata di gayi hain.
+        // Status check successful order/verification ke baad hoga.
       } catch (error) {
-        console.error("Status check failed:", error);
-        setErrorMessage(
-          "Status load nahi hua. Backend server check karo."
-        );
+        setErrorMessage(error.message);
       }
     };
 
@@ -53,12 +47,35 @@ function Payment() {
     setErrorMessage("");
 
     try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Student token nahi mila. Logout karke login karo.");
+      }
+
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const studentId = user._id || user.id || user.userId;
+
+      if (!studentId) {
+        throw new Error("Student ID nahi mila. Please dobara login karo.");
+      }
+
+      /*
+       * IMPORTANT:
+       * Neeche mentorId ko apne actual mentor selection se lena chahiye.
+       * Abhi purane database record ka mentor ID diya hai.
+       * Agar ye current mentor nahi hai, payment mat karo.
+       */
+       const mentorId = "6acc1483bfb9b885560c74cd";
       const response = await fetch(`${API}/payments/orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          studentId: "6aca1a32cbb00b681cd82868",
-          mentorId: "6acb2433dfc297275d444c81",
+          studentId,
+          mentorId,
           sessionDate: "2026-10-20T10:00:00.000Z",
           amountPaise: 100000,
         }),
@@ -67,7 +84,7 @@ function Payment() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Order creation failed");
+        throw new Error(data.message || "Order create nahi hua.");
       }
 
       const scriptLoaded = await new Promise((resolve) => {
@@ -99,7 +116,7 @@ function Payment() {
           try {
             const verifyResponse = await fetch(`${API}/payments/verify`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: authHeaders(),
               body: JSON.stringify(paymentResponse),
             });
 
@@ -107,25 +124,15 @@ function Payment() {
 
             if (!verifyResponse.ok || !verifyData.success) {
               throw new Error(
-                verifyData.message || "Payment verification failed"
+                verifyData.message || "Payment verification failed."
               );
             }
 
             setPaymentStatus("PAID");
-
-            // Booking details dobara load karo
-            const bookingResponse = await fetch(
-              `${API}/bookings/${BOOKING_ID}`
-            );
-            const bookingData = await bookingResponse.json();
-
-            if (bookingResponse.ok && bookingData.success) {
-              setBooking(bookingData.booking);
-            }
-
+            setBooking(verifyData.booking || null);
             setErrorMessage("");
           } catch (error) {
-            setErrorMessage(error.message);
+            setErrorMessage(error.message || "Verification failed.");
           } finally {
             setLoading(false);
           }
@@ -139,7 +146,7 @@ function Payment() {
       });
 
       checkout.on("payment.failed", () => {
-        setErrorMessage("Payment failed. Server status verify karo.");
+        setErrorMessage("Payment failed. Dobara status check karo.");
         setLoading(false);
       });
 
@@ -150,56 +157,31 @@ function Payment() {
     }
   };
 
-  const formatDate = (date) =>
-    new Date(date).toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Asia/Kolkata",
-    });
-
   return (
-    <div style={{
-      maxWidth: "520px",
-      margin: "40px auto",
-      padding: "24px",
-      fontFamily: "Arial",
-      textAlign: "center",
-      border: "1px solid #ddd",
-      borderRadius: "12px",
-    }}>
+    <div
+      style={{
+        maxWidth: 520,
+        margin: "40px auto",
+        padding: 24,
+        fontFamily: "Arial",
+        textAlign: "center",
+        border: "1px solid #ddd",
+        borderRadius: 12,
+      }}
+    >
       <h1>THRONE8</h1>
       <h2>Mentorship Booking</h2>
       <p>Session Amount: ₹1,000</p>
 
-      {paymentStatus === "PAID" && booking && (
-        <div style={{
-          color: "#166534",
-          margin: "20px 0",
-          padding: "18px",
-          background: "#f0fff4",
-          borderRadius: "8px",
-          textAlign: "left",
-        }}>
-          <h3 style={{ textAlign: "center" }}>
-            ✓ Payment Successful!
-          </h3>
-          <p>Payment Status: <strong>PAID</strong></p>
-          <p>Booking Status: <strong>{booking.status}</strong></p>
-          <p>Mentor: {booking.mentor?.name || "Mentor"}</p>
-          <p>Mentor Email: {booking.mentor?.email || "Not available"}</p>
-          <p>Session Date: {formatDate(booking.sessionDate)}</p>
-          <p>Amount: ₹{(booking.amountPaise / 100).toLocaleString("en-IN")}</p>
-          <p>Booking ID: {booking._id}</p>
+      {paymentStatus === "PAID" && (
+        <div style={{ color: "green" }}>
+          <h3>Payment Successful!</h3>
+          <p>Payment Status: PAID</p>
+          {booking && <p>Booking Status: {booking.status}</p>}
         </div>
       )}
 
-      {paymentStatus === "PAID" && !booking && (
-        <p>Payment PAID hai. Booking details load ho rahi hain.</p>
-      )}
-
-      {errorMessage && (
-        <p style={{ color: "red" }}>{errorMessage}</p>
-      )}
+      {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
 
       {paymentStatus !== "PAID" && (
         <button
@@ -210,7 +192,7 @@ function Payment() {
             background: loading ? "#999" : "#2563eb",
             color: "white",
             border: "none",
-            borderRadius: "6px",
+            borderRadius: 6,
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
