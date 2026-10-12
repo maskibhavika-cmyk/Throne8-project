@@ -6,54 +6,66 @@
 .admin-layout {
   min-height: 100vh;
   display: flex;
-  background: #f4f6fb;
-  color: #172033;
+  background: #0A1020;
+  color: #D0D9E5;
   font-family: Arial, sans-serif;
 }
 
 .admin-sidebar {
   width: 245px;
   min-height: 100vh;
-  background: #151b35;
-  color: white;
+  background: #080D19;
+  color: #D0D9E5;
   padding: 30px 18px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  border-right: 1px solid #26344B;
 }
 
 .admin-logo {
   font-size: 23px;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   margin: 0 0 45px;
+  color: #C0CDDC;
 }
 
 .sidebar-label {
-  color: #8d97b9;
+  color: #7889A4;
   font-size: 11px;
   letter-spacing: 1.5px;
   margin: 0 12px 15px;
 }
 
 .sidebar-link {
-  padding: 15px 13px;
-  margin: 5px 0;
-  border-radius: 10px;
-  color: #c3c9df;
+  display: block;
+  padding: 13px 15px;
+  margin: 6px 0;
+  border-radius: 9px;
+  color: #A9B7CB;
   font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-link:hover {
+  background: #172238;
+  color: #E0E7F0;
 }
 
 .sidebar-link.active {
-  background: linear-gradient(100deg, #6558e8, #8b5cf6);
-  color: white;
-  box-shadow: 0 7px 20px #6558e833;
+  background: linear-gradient(100deg, #35465F, #536681);
+  color: #FFFFFF;
+  font-weight: bold;
+  box-shadow: 0 7px 20px #00000025;
 }
 
 .sidebar-bottom {
   margin-top: auto;
   padding: 15px 10px;
-  border-top: 1px solid #303752;
-  color: #aeb6d0;
+  border-top: 1px solid #26344B;
+  color: #91A0B7;
   font-size: 13px;
 }
 
@@ -61,6 +73,7 @@
   flex: 1;
   min-width: 0;
   padding: 35px;
+  background: #0A1020;
 }
 
 .admin-header {
@@ -72,7 +85,7 @@
 }
 
 .admin-eyebrow {
-  color: #6b5ce7;
+  color: #9CAEC6;
   font-size: 11px;
   font-weight: bold;
   letter-spacing: 2px;
@@ -80,24 +93,27 @@
 }
 
 .admin-header h1 {
+  color: #E0E7F0;
   font-size: 30px;
   margin: 0 0 10px;
 }
 
 .admin-subtitle {
-  color: #858ca1;
+  color: #91A0B7;
   margin: 0;
   font-size: 14px;
+  line-height: 1.7;
 }
 
 .admin-profile {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: white;
+  background: #172238;
   padding: 12px 16px;
+  border: 1px solid #34445F;
   border-radius: 14px;
-  box-shadow: 0 5px 20px #17203308;
+  box-shadow: 0 5px 20px #00000020;
 }
 
 .profile-avatar {
@@ -106,8 +122,8 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #e8e5ff;
-  color: #6254db;
+  background: #34445F;
+  color: #D0D9E5;
   font-weight: bold;
   font-size: 20px;
 }
@@ -118,45 +134,51 @@
 }
 
 .admin-profile strong {
+  color: #D0D9E5;
   font-size: 13px;
 }
 
 .admin-profile span {
-  color: #9298aa;
+  color: #91A0B7;
   font-size: 12px;
   margin-top: 5px;
 }
 
 .welcome-banner {
   padding: 30px;
+  border: 1px solid #465873;
   border-radius: 20px;
-  background: linear-gradient(110deg, #5145cd, #8263ed);
-  color: white;
+  background: linear-gradient(110deg, #1B2A40, #344761);
+  color: #D0D9E5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 12px 30px #6558e82b;
+  box-shadow: 0 12px 30px #00000025;
 }
 
 .welcome-banner p {
+  color: #C0CDDC;
   font-size: 11px;
   letter-spacing: 2px;
-  opacity: 0.8;
+  margin: 0;
 }
 
 .welcome-banner h2 {
+  color: #F0F4FA;
   font-size: 25px;
   margin: 12px 0;
 }
 
 .welcome-banner span {
+  color: #C0CDDC;
   font-size: 13px;
-  opacity: 0.85;
+  line-height: 1.7;
 }
 
 .banner-icon {
   font-size: 60px;
+  color: #C0CDDC;
 }
 
 .stats-section {
@@ -172,12 +194,13 @@
 }
 
 .section-heading h2 {
+  color: #D0D9E5;
   font-size: 20px;
   margin: 0;
 }
 
 .section-heading span {
-  color: #9298aa;
+  color: #91A0B7;
   font-size: 12px;
 }
 
@@ -188,17 +211,18 @@
 }
 
 .stat-card {
-  background: white;
+  min-width: 0;
+  background: #172238;
   padding: 24px;
-  border-radius: 17px;
-  border: 1px solid #eaedf5;
-  box-shadow: 0 6px 22px #17203306;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 15px;
+  border: 1px solid #34445F;
+  box-shadow: 0 6px 22px #00000020;
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 25px #17203310;
+  border-color: #788BA6;
 }
 
 .stat-icon {
@@ -206,53 +230,46 @@
   height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 13px;
   font-size: 23px;
   margin-bottom: 20px;
+  background: #293950;
+  color: #D0D9E5;
 }
 
-.stat-icon.blue {
-  background: #e6efff;
-}
-
-.stat-icon.purple {
-  background: #eee8ff;
-}
-
-.stat-icon.orange {
-  background: #fff0df;
-}
-
-.stat-icon.green {
-  background: #dff8eb;
-}
-
+.stat-icon.blue,
+.stat-icon.purple,
+.stat-icon.orange,
+.stat-icon.green,
 .stat-icon.pink {
-  background: #ffe6f1;
+  background: #293950;
+  color: #C0CDDC;
 }
 
 .stat-card p {
-  color: #7e869c;
+  color: #A9B7CB;
   font-size: 13px;
   margin: 0 0 10px;
 }
 
 .stat-card h2 {
+  color: #E0E7F0;
   font-size: 29px;
   margin: 0 0 18px;
   overflow-wrap: anywhere;
 }
 
 .stat-footer {
-  color: #a0a6b6;
+  color: #91A0B7;
   font-size: 11px;
+  line-height: 1.6;
 }
 
 .admin-footer {
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #e4e8f1;
-  color: #969caf;
+  border-top: 1px solid #26344B;
+  color: #91A0B7;
   font-size: 12px;
 }
 
@@ -260,13 +277,17 @@
   margin: 0 8px;
 }
 
-.admin-message,
-.admin-error {
+.admin-message {
   padding: 30px;
+  color: #C0CDDC;
 }
 
 .admin-error {
-  color: #dc2626;
+  padding: 30px;
+  color: #E59A9A;
+  background: #251720;
+  border: 1px solid #563340;
+  border-radius: 10px;
 }
 
 @media (max-width: 800px) {
@@ -329,29 +350,17 @@
     align-items: flex-start;
     flex-direction: column;
   }
-}
 
-/* Sidebar menu links */
-.sidebar-link {
-  display: block;
-  padding: 12px 15px;
-  margin: 6px 0;
-  border-radius: 8px;
-  color: #d1d5e8;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 12px;
+  }
 
-/* Mouse le jaane par */
-.sidebar-link:hover {
-  background-color: #26365b;
-  color: #ffffff;
-}
+  .stat-card {
+    padding: 18px;
+  }
 
-/* Current active page */
-.sidebar-link.active {
-  background-color: #3157a4;
-  color: #ffffff;
-  font-weight: bold;
+  .stat-card h2 {
+    font-size: 24px;
+  }
 }
