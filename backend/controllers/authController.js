@@ -61,42 +61,62 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Register error:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Registration failed",
     });
   }
 };
-
 
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      !email.trim() ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Valid email and password are required",
       });
     }
 
-    const user = await User.findOne({
-      email: email.trim().toLowerCase(),
-    }).select("+password");
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!user) {
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
+    console.log("User found:", !!user);
+
+    if (!user || !user.password) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+    console.log("Password matched:", isMatch);
 
     if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is missing");
+      return res.status(500).json({
+        success: false,
+        message: "Server authentication configuration error",
       });
     }
 
@@ -121,9 +141,10 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Login error:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Login failed",
     });
   }
 };

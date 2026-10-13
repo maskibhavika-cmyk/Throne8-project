@@ -2,6 +2,9 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const {
+  createMentorAccount,
+} = require("../controllers/mentorAccountController");
 
 const Booking = require("../models/Booking");
 
@@ -52,7 +55,12 @@ router.get(
     }
   }
 );
-
+router.post(
+  "/mentor-account",
+  authMiddleware,
+  authorizeRoles("mentor"),
+  createMentorAccount
+);
 router.get("/:bookingId", authMiddleware, getBookingById);
 
 router.patch(

@@ -13,6 +13,7 @@ const createPaymentOrder = async (req, res) => {
   try {
     const { studentId, mentorId, sessionDate, amountPaise } = req.body;
 
+    // 1. Validate booking details
     if (
       !studentId ||
       !mentorId ||
@@ -27,6 +28,7 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
+    // 2. Validate IDs
     if (
       !Booking.base.Types.ObjectId.isValid(studentId) ||
       !Booking.base.Types.ObjectId.isValid(mentorId)
@@ -37,11 +39,9 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // Student can create only their own booking
+    // 3. Student can create only their own booking
     const loggedInUserId =
-  req.user?._id ||
-  req.user?.id ||
-  req.user?.userId;
+      req.user?._id || req.user?.id || req.user?.userId;
 
     if (
       !loggedInUserId ||
@@ -53,23 +53,37 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // Validate session date
+    // 4. Validate future session date
     const parsedSessionDate = new Date(sessionDate);
 
-    if (Number.isNaN(parsedSessionDate.getTime()) ||
-        parsedSessionDate <= new Date()) {
+    if (
+      Number.isNaN(parsedSessionDate.getTime()) ||
+      parsedSessionDate <= new Date()
+    ) {
       return res.status(400).json({
         success: false,
         message: "Please provide a valid future session date",
       });
     }
 
+    // 5. Check mentor account
     const mentorAccount = await MentorAccount.findOne({
       mentor: mentorId,
     });
 
-    const commissionRateBps =
-      mentorAccount?.commissionRateBps ?? 2000;
+    if (
+      !mentorAccount ||
+      mentorAccount.verificationStatus !== "VERIFIED" ||
+      mentorAccount.isOnHold
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Mentor is not eligible for bookings",
+      });
+    }
+
+    // 6. Calculate platform commission
+    const commissionRateBps = mentorAccount.commissionRateBps;
 
     if (
       !Number.isSafeInteger(commissionRateBps) ||
@@ -86,8 +100,10 @@ const createPaymentOrder = async (req, res) => {
       (amountPaise * commissionRateBps + 5000) / 10000
     );
 
+    // Mentor receives the amount remaining after commission
     const mentorGrossPaise = amountPaise - commissionPaise;
 
+    // 7. Create Razorpay order
     const razorpayOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
@@ -98,6 +114,7 @@ const createPaymentOrder = async (req, res) => {
       },
     });
 
+    // 8. Save booking with commission details
     const booking = await Booking.create({
       student: studentId,
       mentor: mentorId,
@@ -108,6 +125,7 @@ const createPaymentOrder = async (req, res) => {
       mentorGrossPaise,
     });
 
+    // 9. Save payment record
     const payment = await Payment.create({
       booking: booking._id,
       student: studentId,
@@ -117,13 +135,25 @@ const createPaymentOrder = async (req, res) => {
       status: "CREATED",
     });
 
+    // 10. Return booking and commission details
     return res.status(201).json({
       success: true,
       message: "Razorpay order and booking created",
       keyId: process.env.RAZORPAY_KEY_ID,
       order: razorpayOrder,
-      booking,
-      payment,
+      booking: {
+        _id: booking._id,
+        amountPaise: booking.amountPaise,
+        commissionRateBps: booking.commissionRateBps,
+        commissionPaise: booking.commissionPaise,
+        mentorGrossPaise: booking.mentorGrossPaise,
+      },
+      payment: {
+        _id: payment._id,
+        status: payment.status,
+        amountPaise: payment.amountPaise,
+        razorpayOrderId: payment.razorpayOrderId,
+      },
     });
   } catch (error) {
     console.error("Create payment order error:", error.message);

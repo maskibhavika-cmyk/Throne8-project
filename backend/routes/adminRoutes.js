@@ -4,7 +4,7 @@ const router = express.Router();
 
 const {
   getAdminStats,
-  getAllUsers,getAllBookings,getAllPayments,
+  getAllUsers,getAllBookings,getAllPayments, verifyMentorAccount
 } = require("../controllers/adminController");
 
 const {
@@ -37,5 +37,11 @@ router.get(
   authMiddleware,
   authorizeRoles("admin"),
   getAllPayments
+);
+router.patch(
+  "/mentors/:mentorId/verify",
+  authMiddleware,
+  authorizeRoles("admin"),
+  verifyMentorAccount
 );
 module.exports = router;

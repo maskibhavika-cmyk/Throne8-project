@@ -2,6 +2,7 @@
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 const Payment = require("../models/Payment");
+const MentorAccount = require("../models/MentorAccount");
 
 // Admin Dashboard Statistics
 const getAdminStats = async (req, res) => {
@@ -99,10 +100,40 @@ const getAllPayments = async (req, res) => {
     });
   }
 };
+// Verify Mentor Account
+const verifyMentorAccount = async (req, res) => {
+  try {
+    const { mentorId } = req.params;
+
+    const mentorAccount = await MentorAccount.findOneAndUpdate(
+      { mentor: mentorId },
+      { verificationStatus: "VERIFIED" },
+      { new: true, runValidators: true }
+    );
+
+    if (!mentorAccount) {
+      return res.status(404).json({
+        success: false,
+        message: "Mentor account not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Mentor account verified successfully",
+      mentorAccount,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to verify mentor account",
+    });
+  }
+};
 
 
 module.exports = {
   getAdminStats,
   getAllUsers,
-  getAllBookings,getAllPayments
+  getAllBookings,getAllPayments,verifyMentorAccount
 };
