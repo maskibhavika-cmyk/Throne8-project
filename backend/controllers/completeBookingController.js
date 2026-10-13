@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 const Earning = require("../models/Earning");
 const Refund = require("../models/Refund");
+const { payoutQueue } = require("../jobs/payoutQueue");
 
 // Get booking details
 const getBookingById = async (req, res) => {
@@ -27,12 +28,8 @@ const getBookingById = async (req, res) => {
       });
     }
 
-    const userId =
-      req.user?._id ||
-      req.user?.id ||
-      req.user?.userId;
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
 
-    // Students can view only their own booking.
     if (
       req.user?.role === "student" &&
       String(booking.student) !== String(userId)
@@ -43,10 +40,9 @@ const getBookingById = async (req, res) => {
       });
     }
 
-    // Mentors can view only their own bookings.
     if (
       req.user?.role === "mentor" &&
-      String(booking.mentor?._id) !== String(userId)
+      String(booking.mentor?._id || booking.mentor) !== String(userId)
     ) {
       return res.status(403).json({
         success: false,
@@ -54,10 +50,7 @@ const getBookingById = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      booking,
-    });
+    return res.status(200).json({ success: true, booking });
   } catch (error) {
     console.error("Get booking error:", error.message);
     return res.status(500).json({
@@ -88,12 +81,8 @@ const completeBooking = async (req, res) => {
       });
     }
 
-    const userId =
-      req.user?._id ||
-      req.user?.id ||
-      req.user?.userId;
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
 
-    // Only the assigned mentor or admin can complete a booking.
     if (
       req.user?.role !== "admin" &&
       (
@@ -103,8 +92,7 @@ const completeBooking = async (req, res) => {
     ) {
       return res.status(403).json({
         success: false,
-        message:
-          "Only the assigned mentor or admin can complete this booking",
+        message: "Only the assigned mentor or admin can complete this booking",
       });
     }
 
@@ -118,7 +106,6 @@ const completeBooking = async (req, res) => {
       });
     }
 
-    // Do not complete a session before its scheduled date/time.
     if (new Date(booking.sessionDate) > new Date()) {
       return res.status(400).json({
         success: false,
@@ -135,9 +122,7 @@ const completeBooking = async (req, res) => {
 
     const completedAt = new Date();
     const payoutEligibleAt = new Date(completedAt);
-    payoutEligibleAt.setUTCDate(
-      payoutEligibleAt.getUTCDate() + 15
-    );
+    payoutEligibleAt.setUTCDate(payoutEligibleAt.getUTCDate() + 15);
 
     const pendingRefund = await Refund.exists({
       booking: booking._id,
@@ -167,6 +152,21 @@ const completeBooking = async (req, res) => {
     if (pendingRefund && earning.status !== "ON_HOLD") {
       earning.status = "ON_HOLD";
       await earning.save();
+    }
+
+    // Schedule eligibility check for 15 days after completion.
+    // Refund holds are rechecked by the worker before eligibility is granted.
+    if (!pendingRefund) {
+      await payoutQueue.add(
+        "check-payout-eligibility",
+        { bookingId: booking._id.toString() },
+        {
+          jobId: `payout-${booking._id}`,
+          delay: Math.max(0, payoutEligibleAt.getTime() - Date.now()),
+          attempts: 5,
+          backoff: { type: "exponential", delay: 60000 },
+        }
+      );
     }
 
     return res.status(200).json({
