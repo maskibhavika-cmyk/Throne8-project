@@ -4,37 +4,258 @@ import axios from "axios";
 
 const API = "http://localhost:5000/api/v1/payments";
 
+function formatRupees(paise = 0) {
+  return (Number(paise || 0) / 100).toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  });
+}
+
 export default function Earnings() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-const mentorId = user?._id || user?.id;
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+  const [loading, setLoading] = useState(true);
 
-    axios
-      .get(`${API}/earnings/${mentorId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setData(res.data))
-      .catch((err) =>
-        setError(err.response?.data?.message || "Earnings load nahi hui")
-      );
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const mentorId = user?._id || user?.id || user?.userId;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadEarnings() {
+      try {
+        const token = localStorage.getItem("token");
+
+        if (!token || !mentorId) {
+          throw new Error("Please login again to view your earnings.");
+        }
+
+        const response = await axios.get(
+          `${API}/earnings/${mentorId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (active) setData(response.data);
+      } catch (err) {
+        if (active) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Earnings load nahi hui."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadEarnings();
+
+    return () => {
+      active = false;
+    };
   }, [mentorId]);
 
-  if (error) return <p>{error}</p>;
-  if (!data) return <p>Loading earnings...</p>;
+  if (loading) {
+    return (
+      <div style={styles.page}>
+        <p>Loading earnings...</p>
+      </div>
+    );
+  }
 
-  const totals = data.totalByStatus || {};
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <h2>My Earnings</h2>
+        <p style={{ color: "#f87171" }}>{error}</p>
+      </div>
+    );
+  }
+
+  const totals = data?.totalByStatus || {};
+
+  const cards = [
+    {
+      title: "Pending",
+      amount: totals.pendingPaise,
+      color: "#fbbf24",
+    },
+    {
+      title: "On Hold",
+      amount: totals.onHoldPaise,
+      color: "#fb923c",
+    },
+    {
+      title: "Eligible",
+      amount: totals.eligiblePaise,
+      color: "#34d399",
+    },
+    {
+      title: "Paid Out",
+      amount: totals.paidPaise,
+      color: "#60a5fa",
+    },
+    {
+      title: "Reversed",
+      amount: totals.reversedPaise,
+      color: "#f87171",
+    },
+  ];
 
   return (
-    <div style={{ padding: 24, color: "#D0D9E5", background: "#0A1020", minHeight: "100vh" }}>
-      <h1>My Earnings</h1>
-      <p>Pending: ₹{(totals.pendingPaise || 0) / 100}</p>
-      <p>On Hold: ₹{(totals.onHoldPaise || 0) / 100}</p>
-      <p>Eligible: ₹{(totals.eligiblePaise || 0) / 100}</p>
-      <p>Paid: ₹{(totals.paidPaise || 0) / 100}</p>
-      <p>Reversed: ₹{(totals.reversedPaise || 0) / 100}</p>
-    </div>
+    <main style={styles.page}>
+      <header style={styles.header}>
+        <div>
+          <p style={styles.eyebrow}>THRONE8 MENTOR PORTAL</p>
+          <h1 style={styles.heading}>My Earnings</h1>
+          <p style={styles.subtitle}>
+            Track your mentorship earnings and payout status.
+          </p>
+        </div>
+
+        <button
+          style={styles.button}
+          onClick={() => window.location.reload()}
+        >
+          Refresh
+        </button>
+      </header>
+
+      <section style={styles.grid}>
+        {cards.map((card) => (
+          <article key={card.title} style={styles.card}>
+            <p style={styles.cardTitle}>{card.title}</p>
+            <h2 style={{ ...styles.amount, color: card.color }}>
+              {formatRupees(card.amount)}
+            </h2>
+          </article>
+        ))}
+      </section>
+
+      <section style={styles.panel}>
+        <h2 style={styles.sectionHeading}>Earning Summary</h2>
+        <p style={styles.subtitle}>
+          These amounts represent your recorded mentor earnings,
+          after the platform commission.
+        </p>
+
+        {Object.values(totals).every((value) => Number(value || 0) === 0) ? (
+          <p style={styles.empty}>
+            No earnings recorded yet. Verified payments must be linked
+            to bookings before earnings appear here.
+          </p>
+        ) : (
+          <div style={styles.summary}>
+            {cards.map((card) => (
+              <div key={card.title} style={styles.row}>
+                <span>{card.title}</span>
+                <strong>{formatRupees(card.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <p style={styles.note}>
+        Earnings and payout eligibility depend on verified payment,
+        booking completion, and refund checks.
+      </p>
+    </main>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#0a1020",
+    color: "#e5edf7",
+    padding: "32px",
+    fontFamily: "Arial, sans-serif",
+    boxSizing: "border-box",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "16px",
+    marginBottom: "28px",
+  },
+  eyebrow: {
+    color: "#60a5fa",
+    fontSize: "12px",
+    letterSpacing: "2px",
+  },
+  heading: {
+    fontSize: "32px",
+    margin: "8px 0",
+  },
+  subtitle: {
+    color: "#94a3b8",
+    lineHeight: 1.6,
+  },
+  button: {
+    background: "#2563eb",
+    color: "white",
+    border: 0,
+    borderRadius: "8px",
+    padding: "12px 18px",
+    cursor: "pointer",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "16px",
+  },
+  card: {
+    background: "#111b30",
+    border: "1px solid #25334c",
+    borderRadius: "12px",
+    padding: "20px",
+  },
+  cardTitle: {
+    color: "#94a3b8",
+    margin: 0,
+  },
+  amount: {
+    fontSize: "24px",
+    overflowWrap: "anywhere",
+  },
+  panel: {
+    marginTop: "28px",
+    padding: "24px",
+    background: "#111b30",
+    border: "1px solid #25334c",
+    borderRadius: "12px",
+  },
+  sectionHeading: {
+    marginTop: 0,
+  },
+  empty: {
+    padding: "18px 0",
+    color: "#94a3b8",
+    lineHeight: 1.6,
+  },
+  summary: {
+    marginTop: "20px",
+  },
+  row: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "14px 0",
+    borderBottom: "1px solid #25334c",
+  },
+  note: {
+    marginTop: "20px",
+    color: "#94a3b8",
+    fontSize: "13px",
+    lineHeight: 1.6,
+  },
+};

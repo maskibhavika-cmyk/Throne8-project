@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
-
+const Earning = require("../models/Earning");
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -92,18 +92,31 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-    if (
-      payment.status === "PAID" &&
-      booking.paymentStatus === "PAID" &&
-      payment.razorpayPaymentId === razorpay_payment_id
-    ) {
-      return res.status(200).json({
-        success: true,
-        message: "Payment already verified",
-        paymentStatus: "PAID",
-        bookingStatus: booking.status,
-      });
-    }
+if (
+  payment.status === "PAID" &&
+  booking.paymentStatus === "PAID" &&
+  payment.razorpayPaymentId === razorpay_payment_id
+) {
+  await Earning.updateOne(
+    { booking: booking._id },
+    {
+      $setOnInsert: {
+        booking: booking._id,
+        mentor: booking.mentor,
+        amountPaise: booking.mentorGrossPaise,
+        status: "PENDING",
+      },
+    },
+    { upsert: true }
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: "Payment already verified",
+    paymentStatus: "PAID",
+    bookingStatus: booking.status,
+  });
+}
 
     if (
       payment.status !== "CREATED" ||
@@ -125,6 +138,20 @@ const verifyPayment = async (req, res) => {
     booking.paymentStatus = "PAID";
     booking.status = "CONFIRMED";
     await booking.save();
+    console.log("Creating mentor earning for booking:", booking._id);
+    console.log("Booking mentor gross:", booking.mentorGrossPaise);
+    await Earning.updateOne(
+  { booking: booking._id },
+  {
+    $setOnInsert: {
+      booking: booking._id,
+      mentor: booking.mentor,
+      amountPaise: booking.mentorGrossPaise,
+      status: "PENDING",
+    },
+  },
+  { upsert: true }
+);
 
     return res.status(200).json({
       success: true,
