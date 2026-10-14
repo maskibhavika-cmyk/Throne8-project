@@ -17,7 +17,10 @@ function AdminDashboard() {
           Authorization: `Bearer ${token}`,
         },
       })
-      .then((response) => setStats(response.data.stats))
+      .then((response) => {
+  console.log("Admin stats:", response.data.stats);
+  setStats(response.data.stats);
+})
       .catch((err) =>
         setError(
           err.response?.data?.message ||

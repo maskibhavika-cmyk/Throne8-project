@@ -9,7 +9,7 @@ const getAdminStats = async (req, res) => {
   try {
     const [totalUsers, totalBookings, totalPayments, paidPayments] =
       await Promise.all([
-        User.countDocuments({ role: { $ne: "admin" } }),
+     User.countDocuments(),
         Booking.countDocuments(),
         Payment.countDocuments(),
         Payment.find({ status: "PAID" }).select("amountPaise"),

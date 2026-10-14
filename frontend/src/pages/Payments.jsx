@@ -102,13 +102,7 @@ function Payments() {
           <p>Monitor transactions and track payment records.</p>
         </div>
 
-        <div className="payments-total">
-          <span className="payments-total-icon">₹</span>
-          <div>
-            <small>Total Payments</small>
-            <h2>{payments.length}</h2>
-          </div>
-        </div>
+      
       </header>
 
       <section className="payment-stats">

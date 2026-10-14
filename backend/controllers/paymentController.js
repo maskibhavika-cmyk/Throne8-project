@@ -1,7 +1,9 @@
 
+const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 const Payment = require("../models/Payment");
 const MentorAccount = require("../models/MentorAccount");
+const User = require("../models/User");
 const Razorpay = require("razorpay");
 
 const razorpay = new Razorpay({
@@ -10,10 +12,23 @@ const razorpay = new Razorpay({
 });
 
 const createPaymentOrder = async (req, res) => {
+  let booking = null;
+
   try {
     const { studentId, mentorId, sessionDate, amountPaise } = req.body;
 
-    // 1. Validate booking details
+    // 1. Only authenticated students can book a session.
+    const loggedInUserId =
+      req.user?._id || req.user?.id || req.user?.userId;
+
+    if (!loggedInUserId || req.user?.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can create bookings",
+      });
+    }
+
+    // 2. Validate booking details.
     if (
       !studentId ||
       !mentorId ||
@@ -28,10 +43,10 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 2. Validate IDs
+    // 3. Validate IDs.
     if (
-      !Booking.base.Types.ObjectId.isValid(studentId) ||
-      !Booking.base.Types.ObjectId.isValid(mentorId)
+      !mongoose.Types.ObjectId.isValid(studentId) ||
+      !mongoose.Types.ObjectId.isValid(mentorId)
     ) {
       return res.status(400).json({
         success: false,
@@ -39,21 +54,15 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 3. Student can create only their own booking
-    const loggedInUserId =
-      req.user?._id || req.user?.id || req.user?.userId;
-
-    if (
-      !loggedInUserId ||
-      String(loggedInUserId) !== String(studentId)
-    ) {
+    // 4. Students can create bookings only for themselves.
+    if (String(loggedInUserId) !== String(studentId)) {
       return res.status(403).json({
         success: false,
         message: "You can only create your own booking",
       });
     }
 
-    // 4. Validate future session date
+    // 5. Validate the session date.
     const parsedSessionDate = new Date(sessionDate);
 
     if (
@@ -66,7 +75,17 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 5. Check mentor account
+    // 6. Ensure the selected user is actually a mentor.
+    const mentor = await User.findById(mentorId).select("role");
+
+    if (!mentor || mentor.role !== "mentor") {
+      return res.status(400).json({
+        success: false,
+        message: "Selected user is not a mentor",
+      });
+    }
+
+    // 7. Only verified mentors who are not on hold can receive bookings.
     const mentorAccount = await MentorAccount.findOne({
       mentor: mentorId,
     });
@@ -82,7 +101,7 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 6. Calculate platform commission
+    // 8. Validate and calculate commission on the backend.
     const commissionRateBps = mentorAccount.commissionRateBps;
 
     if (
@@ -100,10 +119,9 @@ const createPaymentOrder = async (req, res) => {
       (amountPaise * commissionRateBps + 5000) / 10000
     );
 
-    // Mentor receives the amount remaining after commission
     const mentorGrossPaise = amountPaise - commissionPaise;
 
-    // 7. Create Razorpay order
+    // 9. Create the Razorpay order.
     const razorpayOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
@@ -114,8 +132,8 @@ const createPaymentOrder = async (req, res) => {
       },
     });
 
-    // 8. Save booking with commission details
-    const booking = await Booking.create({
+    // 10. Save booking and payment records.
+    booking = await Booking.create({
       student: studentId,
       mentor: mentorId,
       sessionDate: parsedSessionDate,
@@ -125,7 +143,6 @@ const createPaymentOrder = async (req, res) => {
       mentorGrossPaise,
     });
 
-    // 9. Save payment record
     const payment = await Payment.create({
       booking: booking._id,
       student: studentId,
@@ -135,12 +152,16 @@ const createPaymentOrder = async (req, res) => {
       status: "CREATED",
     });
 
-    // 10. Return booking and commission details
+    // 11. Return only the details needed by the frontend.
     return res.status(201).json({
       success: true,
       message: "Razorpay order and booking created",
       keyId: process.env.RAZORPAY_KEY_ID,
-      order: razorpayOrder,
+      order: {
+        id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+      },
       booking: {
         _id: booking._id,
         amountPaise: booking.amountPaise,
@@ -157,6 +178,16 @@ const createPaymentOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Create payment order error:", error.message);
+
+    // Best-effort cleanup if a booking was saved but a later step failed.
+    if (booking?._id) {
+      try {
+        await Payment.deleteMany({ booking: booking._id });
+        await Booking.deleteOne({ _id: booking._id });
+      } catch (cleanupError) {
+        console.error("Booking cleanup error:", cleanupError.message);
+      }
+    }
 
     return res.status(500).json({
       success: false,

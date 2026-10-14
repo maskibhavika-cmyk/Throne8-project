@@ -8,9 +8,16 @@ function Users() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("Please login to access users.");
+      setLoading(false);
+      return;
+    }
 
     axios
       .get("http://localhost:5000/api/v1/admin/users", {
@@ -18,23 +25,39 @@ function Users() {
           Authorization: `Bearer ${token}`,
         },
       })
-      .then((res) => setUsers(res.data.users))
-      .catch((err) =>
+      .then((res) => {
+        setUsers(Array.isArray(res.data.users) ? res.data.users : []);
+      })
+      .catch((err) => {
         setError(
-          err.response?.data?.message || "Users load nahi hue"
-        )
-      )
+          err.response?.data?.message || "Users load nahi hue."
+        );
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredUsers = users.filter((user) =>
-    `${user.name} ${user.email} ${user.role}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => {
+    const name = user.name || "";
+    const email = user.email || "";
+    const role = user.role || "";
 
-  if (loading) return <p className="users-message">Loading users...</p>;
-  if (error) return <p className="users-error">{error}</p>;
+    const matchesSearch = `${name} ${email} ${role}`
+      .toLowerCase()
+      .includes(search.trim().toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" || role.toLowerCase() === roleFilter;
+
+    return matchesSearch && matchesRole;
+  });
+
+  if (loading) {
+    return <p className="users-message">Loading users...</p>;
+  }
+
+  if (error) {
+    return <p className="users-error">{error}</p>;
+  }
 
   return (
     <div className="users-page">
@@ -61,13 +84,28 @@ function Users() {
             <p>Registered accounts on THRONE8</p>
           </div>
 
-          <input
-            className="users-search"
-            type="text"
-            placeholder="Search name, email or role..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="users-filters">
+            <input
+              className="users-search"
+              type="search"
+              placeholder="Search name, email or role..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search users"
+            />
+
+            <select
+              className="users-role-filter"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              aria-label="Filter users by role"
+            >
+              <option value="all">All Roles</option>
+              <option value="student">Student</option>
+              <option value="mentor">Mentor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
         </div>
 
         <div className="users-table-wrap">
@@ -89,15 +127,19 @@ function Users() {
                       <div className="user-avatar">
                         {(user.name || "U").charAt(0).toUpperCase()}
                       </div>
-                      <strong>{user.name}</strong>
+                      <strong>{user.name || "Unknown User"}</strong>
                     </div>
                   </td>
 
-                  <td>{user.email}</td>
+                  <td>{user.email || "N/A"}</td>
 
                   <td>
-                    <span className={`role-badge ${user.role}`}>
-                      {user.role}
+                    <span
+                      className={`role-badge ${(user.role || "unknown")
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]/g, "")}`}
+                    >
+                      {user.role || "Unknown"}
                     </span>
                   </td>
 
@@ -113,7 +155,7 @@ function Users() {
               {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan="4" className="users-empty">
-                    No users found.
+                    No users match your search or selected role.
                   </td>
                 </tr>
               )}

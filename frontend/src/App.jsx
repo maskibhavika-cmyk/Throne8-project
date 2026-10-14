@@ -13,11 +13,12 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
 import Users from "./pages/Users";
-
+import AdminBookings from "./pages/AdminBookings";
 import Payments from "./pages/Payments";
 import Earnings from "./pages/mentor/Earnings";
 import Payouts from "./pages/mentor/Payouts";
 import "./App.css";
+
 
 function Navbar() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -265,15 +266,17 @@ function App() {
             </ProtectedAdminRoute>
           }
         />
-
-        <Route
-          path="/admin-bookings"
-          element={
-            <ProtectedAdminRoute>
-              <Bookings />
-            </ProtectedAdminRoute>
-          }
-        />
+<Route
+  path="/admin-bookings"
+  element={
+    <ProtectedAdminRoute>
+      <div className="app">
+        <Navbar />
+        <AdminBookings />
+      </div>
+    </ProtectedAdminRoute>
+  }
+/>
 
         <Route
           path="/admin-payments"

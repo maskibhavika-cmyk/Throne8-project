@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import "./Bookings.css";
 const API = "http://localhost:5000/api/v1";
 
 export default function Bookings() {

@@ -32,6 +32,8 @@ function Login() {
       );
 
       const user = response.data.user;
+      console.log("Login response:", response.data);
+console.log("User role:", response.data.user?.role);
       const token = response.data.token;
 
       localStorage.setItem("token", token);
