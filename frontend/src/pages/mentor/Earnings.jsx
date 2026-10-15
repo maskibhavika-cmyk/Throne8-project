@@ -80,6 +80,30 @@ export default function Earnings() {
 
   const totals = data?.totalByStatus || {};
 
+  // Recorded mentor earnings are the amount after platform commission.
+  const mentorSharePaise = Object.values(totals).reduce(
+    (sum, value) => sum + (Number(value) || 0),
+    0
+  );
+
+  // At a 20% platform commission, mentor share is 80%.
+  const platformCommissionPaise = Math.round(
+    (mentorSharePaise * 20) / 80
+  );
+
+  const commissionCards = [
+    {
+      title: "Platform Commission (20%)",
+      amount: platformCommissionPaise,
+      color: "#fbbf24",
+    },
+    {
+      title: "Mentor Share (80%)",
+      amount: mentorSharePaise,
+      color: "#34d399",
+    },
+  ];
+
   const cards = [
     {
       title: "Pending",
@@ -127,6 +151,21 @@ export default function Earnings() {
         </button>
       </header>
 
+      <h2 style={styles.sectionHeading}>Commission Overview</h2>
+
+      <section style={{ ...styles.grid, marginBottom: "28px" }}>
+        {commissionCards.map((card) => (
+          <article key={card.title} style={styles.card}>
+            <p style={styles.cardTitle}>{card.title}</p>
+            <h2 style={{ ...styles.amount, color: card.color }}>
+              {formatRupees(card.amount)}
+            </h2>
+          </article>
+        ))}
+      </section>
+
+      <h2 style={styles.sectionHeading}>Earnings Status</h2>
+
       <section style={styles.grid}>
         {cards.map((card) => (
           <article key={card.title} style={styles.card}>
@@ -141,14 +180,13 @@ export default function Earnings() {
       <section style={styles.panel}>
         <h2 style={styles.sectionHeading}>Earning Summary</h2>
         <p style={styles.subtitle}>
-          These amounts represent your recorded mentor earnings,
-          after the platform commission.
+          Status-wise recorded mentor earnings after platform commission.
         </p>
 
-        {Object.values(totals).every((value) => Number(value || 0) === 0) ? (
+        {cards.every((card) => Number(card.amount || 0) === 0) ? (
           <p style={styles.empty}>
-            No earnings recorded yet. Verified payments must be linked
-            to bookings before earnings appear here.
+            No earnings recorded yet. A verified payment and linked
+            booking are required before earnings appear here.
           </p>
         ) : (
           <div style={styles.summary}>
@@ -163,7 +201,7 @@ export default function Earnings() {
       </section>
 
       <p style={styles.note}>
-        Earnings and payout eligibility depend on verified payment,
+        Final earnings and payouts depend on verified payments,
         booking completion, and refund checks.
       </p>
     </main>
@@ -218,6 +256,8 @@ const styles = {
     border: "1px solid #25334c",
     borderRadius: "12px",
     padding: "20px",
+    minWidth: 0,
+    boxSizing: "border-box",
   },
   cardTitle: {
     color: "#94a3b8",
@@ -227,15 +267,16 @@ const styles = {
     fontSize: "24px",
     overflowWrap: "anywhere",
   },
+  sectionHeading: {
+    marginTop: "0",
+    marginBottom: "16px",
+  },
   panel: {
     marginTop: "28px",
     padding: "24px",
     background: "#111b30",
     border: "1px solid #25334c",
     borderRadius: "12px",
-  },
-  sectionHeading: {
-    marginTop: 0,
   },
   empty: {
     padding: "18px 0",

@@ -19,6 +19,14 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+// slotStart: {
+//   type: Date,
+//   required: true,
+// },
+// slotEnd: {
+//   type: Date,
+//   required: true,
+// },
 
     amountPaise: {
       type: Number,

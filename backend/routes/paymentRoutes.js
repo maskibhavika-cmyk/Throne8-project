@@ -11,7 +11,7 @@ const { markPaymentFailed } = require("../controllers/paymentFailureController")
 const { updateEligibleEarnings } = require("../controllers/earningEligibilityController");
 const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware");
 const { verifyPayment } = require("../controllers/verifyPaymentController");
-
+const { recoverEarnings } = require("../controllers/recoverEarningsController");
 router.get("/test", (req, res) => {
   res.json({
     success: true,
@@ -54,7 +54,12 @@ router.patch(
   authorizeRoles("admin"),
   updateEligibleEarnings
 );
-
+router.post(
+  "/earnings/recover",
+  authMiddleware,
+  authorizeRoles("admin"),
+  recoverEarnings
+);
 // Payment failure endpoint (controller currently rejects manual updates)
 router.patch("/:paymentId/fail", authMiddleware, markPaymentFailed);
 
