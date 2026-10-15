@@ -1,9 +1,12 @@
 
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const Razorpay = require("razorpay");
+
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
 const Earning = require("../models/Earning");
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -44,19 +47,28 @@ const verifyPayment = async (req, res) => {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    const actual = Buffer.from(razorpay_signature, "hex");
-    const expected = Buffer.from(expectedSignature, "hex");
+    let validSignature = false;
 
-    if (
-      actual.length !== expected.length ||
-      !crypto.timingSafeEqual(actual, expected)
-    ) {
+    try {
+      const actual = Buffer.from(razorpay_signature, "hex");
+      const expected = Buffer.from(expectedSignature, "hex");
+
+      validSignature =
+        actual.length === expected.length &&
+        actual.length > 0 &&
+        crypto.timingSafeEqual(actual, expected);
+    } catch {
+      validSignature = false;
+    }
+
+    if (!validSignature) {
       return res.status(400).json({
         success: false,
         message: "Invalid payment signature",
       });
     }
 
+    // Verify payment directly with Razorpay.
     const providerPayment = await razorpay.payments.fetch(
       razorpay_payment_id
     );
@@ -69,7 +81,7 @@ const verifyPayment = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Payment details do not match",
+        message: "Payment details do not match or payment is not captured",
       });
     }
 
@@ -92,31 +104,32 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-if (
-  payment.status === "PAID" &&
-  booking.paymentStatus === "PAID" &&
-  payment.razorpayPaymentId === razorpay_payment_id
-) {
-  await Earning.updateOne(
-    { booking: booking._id },
-    {
-      $setOnInsert: {
-        booking: booking._id,
-        mentor: booking.mentor,
-        amountPaise: booking.mentorGrossPaise,
-        status: "PENDING",
-      },
-    },
-    { upsert: true }
-  );
+    // Idempotent retry: do not create a second earning.
+    if (
+      payment.status === "PAID" &&
+      booking.paymentStatus === "PAID" &&
+      payment.razorpayPaymentId === razorpay_payment_id
+    ) {
+      await Earning.updateOne(
+        { booking: booking._id },
+        {
+          $setOnInsert: {
+            booking: booking._id,
+            mentor: booking.mentor,
+            amountPaise: booking.mentorGrossPaise,
+            status: "PENDING",
+          },
+        },
+        { upsert: true }
+      );
 
-  return res.status(200).json({
-    success: true,
-    message: "Payment already verified",
-    paymentStatus: "PAID",
-    bookingStatus: booking.status,
-  });
-}
+      return res.status(200).json({
+        success: true,
+        message: "Payment already verified",
+        paymentStatus: "PAID",
+        bookingStatus: booking.status,
+      });
+    }
 
     if (
       payment.status !== "CREATED" ||
@@ -129,39 +142,86 @@ if (
       });
     }
 
-    payment.razorpayPaymentId = razorpay_payment_id;
-    payment.status = "PAID";
-    payment.paidAt = new Date();
+    const session = await mongoose.startSession();
 
-    await payment.save();
+    try {
+      await session.withTransaction(async () => {
+        const updatedPayment = await Payment.findOneAndUpdate(
+          {
+            _id: payment._id,
+            status: "CREATED",
+          },
+          {
+            $set: {
+              razorpayPaymentId: razorpay_payment_id,
+              status: "PAID",
+              paidAt: new Date(),
+            },
+          },
+          { new: true, session }
+        );
 
-    booking.paymentStatus = "PAID";
-    booking.status = "CONFIRMED";
-    await booking.save();
-    console.log("Creating mentor earning for booking:", booking._id);
-    console.log("Booking mentor gross:", booking.mentorGrossPaise);
-    await Earning.updateOne(
-  { booking: booking._id },
-  {
-    $setOnInsert: {
-      booking: booking._id,
-      mentor: booking.mentor,
-      amountPaise: booking.mentorGrossPaise,
-      status: "PENDING",
-    },
-  },
-  { upsert: true }
-);
+        if (!updatedPayment) {
+          const currentPayment = await Payment.findById(
+            payment._id
+          ).session(session);
+
+          if (
+            currentPayment?.status === "PAID" &&
+            currentPayment.razorpayPaymentId === razorpay_payment_id
+          ) {
+            return;
+          }
+
+          throw new Error("Payment status changed; verify again");
+        }
+
+        const updatedBooking = await Booking.findOneAndUpdate(
+          {
+            _id: booking._id,
+            status: "PENDING",
+            paymentStatus: "PENDING",
+          },
+          {
+            $set: {
+              paymentStatus: "PAID",
+              status: "CONFIRMED",
+            },
+          },
+          { new: true, session }
+        );
+
+        if (!updatedBooking) {
+          throw new Error("Booking status changed; verify again");
+        }
+
+        await Earning.updateOne(
+          { booking: booking._id },
+          {
+            $setOnInsert: {
+              booking: booking._id,
+              mentor: booking.mentor,
+              amountPaise: booking.mentorGrossPaise,
+              status: "PENDING",
+            },
+          },
+          { upsert: true, session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
 
     return res.status(200).json({
       success: true,
       message: "Payment verified and booking confirmed",
-      paymentStatus: payment.status,
-      bookingStatus: booking.status,
+      paymentStatus: "PAID",
+      bookingStatus: "CONFIRMED",
       bookingId: booking._id,
     });
   } catch (error) {
     console.error("Verify payment error:", error.message);
+
     return res.status(500).json({
       success: false,
       message: "Unable to verify payment",
