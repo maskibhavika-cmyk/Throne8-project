@@ -145,10 +145,20 @@ function Payment() {
         theme: { color: "#2563eb" },
       });
 
-      checkout.on("payment.failed", () => {
-        setErrorMessage("Payment failed. Dobara status check karo.");
-        setLoading(false);
-      });
+     checkout.on("payment.failed", (response) => {
+  const error = response?.error;
+
+  console.error("Razorpay payment failed:", error);
+
+  setErrorMessage(
+    error?.description ||
+    error?.reason ||
+    error?.code ||
+    "Razorpay payment failed. Browser console check karo."
+  );
+
+  setLoading(false);
+});
 
       checkout.open();
     } catch (error) {

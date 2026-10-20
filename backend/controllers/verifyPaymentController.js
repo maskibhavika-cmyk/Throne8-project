@@ -221,6 +221,7 @@ const verifyPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Verify payment error:", error.message);
+    console.error("Verify payment details:", error);
 
     return res.status(500).json({
       success: false,
