@@ -40,8 +40,7 @@ function AdminDashboard() {
     { title: "Successful Payments", value: stats.successfulPayments, icon: "✅", color: "green" },
     {
       title: "Paid Amount",
-      value: `₹${stats.totalRevenue.toLocaleString("en-IN")}`,
-      icon: "💰",
+     value: `₹${(stats.totalRevenue ?? stats.totalReverificationStatusenue ?? 0).toLocaleString("en-IN")}`,
       color: "pink",
     },
   ];

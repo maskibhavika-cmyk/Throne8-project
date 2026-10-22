@@ -19,7 +19,9 @@ export default function Earnings() {
 
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const mentorId = user?._id || user?.id || user?.userId;
-
+console.log("Logged-in user:", user);
+console.log("Logged-in role:", user?.role);
+console.log("Logged-in mentor ID:", mentorId);
   useEffect(() => {
     let active = true;
 
@@ -40,7 +42,11 @@ export default function Earnings() {
           }
         );
 
-        if (active) setData(response.data);
+       if (active) {
+  console.log("Earnings API response:", response.data);
+  console.log("Mentor ID:", mentorId);
+  setData(response.data);
+}
       } catch (err) {
         if (active) {
           setError(

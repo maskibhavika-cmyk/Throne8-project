@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 const Payment = require("../models/Payment");
@@ -17,7 +16,6 @@ const createPaymentOrder = async (req, res) => {
   try {
     const { studentId, mentorId, sessionDate, amountPaise } = req.body;
 
-    // 1. Only authenticated students can book a session.
     const loggedInUserId =
       req.user?._id || req.user?.id || req.user?.userId;
 
@@ -28,7 +26,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 2. Validate booking details.
     if (
       !studentId ||
       !mentorId ||
@@ -43,7 +40,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 3. Validate IDs.
     if (
       !mongoose.Types.ObjectId.isValid(studentId) ||
       !mongoose.Types.ObjectId.isValid(mentorId)
@@ -54,7 +50,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 4. Students can create bookings only for themselves.
     if (String(loggedInUserId) !== String(studentId)) {
       return res.status(403).json({
         success: false,
@@ -62,7 +57,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 5. Validate the session date.
     const parsedSessionDate = new Date(sessionDate);
 
     if (
@@ -75,7 +69,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 6. Ensure the selected user is actually a mentor.
     const mentor = await User.findById(mentorId).select("role");
 
     if (!mentor || mentor.role !== "mentor") {
@@ -85,7 +78,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 7. Only verified mentors who are not on hold can receive bookings.
     const mentorAccount = await MentorAccount.findOne({
       mentor: mentorId,
     });
@@ -101,7 +93,6 @@ const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 8. Validate and calculate commission on the backend.
     const commissionRateBps = mentorAccount.commissionRateBps;
 
     if (
@@ -121,7 +112,6 @@ const createPaymentOrder = async (req, res) => {
 
     const mentorGrossPaise = amountPaise - commissionPaise;
 
-    // 9. Create the Razorpay order.
     const razorpayOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
@@ -132,7 +122,6 @@ const createPaymentOrder = async (req, res) => {
       },
     });
 
-    // 10. Save booking and payment records.
     booking = await Booking.create({
       student: studentId,
       mentor: mentorId,
@@ -152,7 +141,6 @@ const createPaymentOrder = async (req, res) => {
       status: "CREATED",
     });
 
-    // 11. Return only the details needed by the frontend.
     return res.status(201).json({
       success: true,
       message: "Razorpay order and booking created",
@@ -179,7 +167,6 @@ const createPaymentOrder = async (req, res) => {
   } catch (error) {
     console.error("Create payment order error:", error.message);
 
-    // Best-effort cleanup if a booking was saved but a later step failed.
     if (booking?._id) {
       try {
         await Payment.deleteMany({ booking: booking._id });

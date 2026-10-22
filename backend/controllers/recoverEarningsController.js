@@ -15,14 +15,23 @@ const recoverEarnings = async (req, res) => {
 
     let recoveredCount = 0;
     let skippedCount = 0;
+    const skippedReasons = [];
 
     for (const payment of payments) {
       try {
-        // Validate saved booking and payment data
         const booking = await Booking.findById(payment.booking);
 
+        // 1. Check booking and saved payment data
+        if (!booking) {
+          skippedReasons.push({
+            paymentId: String(payment._id),
+            reason: "Booking not found for this payment",
+          });
+          skippedCount++;
+          continue;
+        }
+
         if (
-          !booking ||
           booking.paymentStatus !== "PAID" ||
           String(booking.student) !== String(payment.student) ||
           booking.amountPaise !== payment.amountPaise ||
@@ -30,11 +39,21 @@ const recoverEarnings = async (req, res) => {
           !payment.razorpayPaymentId ||
           !payment.razorpayPaymentId.startsWith("pay_")
         ) {
+          skippedReasons.push({
+            paymentId: String(payment._id),
+            bookingId: String(booking._id),
+            reason: "Booking/payment fields mismatch",
+            bookingPaymentStatus: booking.paymentStatus,
+            bookingAmountPaise: booking.amountPaise,
+            paymentAmountPaise: payment.amountPaise,
+            hasOrderId: Boolean(payment.razorpayOrderId),
+            hasPaymentId: Boolean(payment.razorpayPaymentId),
+          });
           skippedCount++;
           continue;
         }
 
-        // Verify payment directly with Razorpay
+        // 2. Verify the payment with Razorpay
         const providerPayment = await razorpay.payments.fetch(
           payment.razorpayPaymentId
         );
@@ -45,28 +64,51 @@ const recoverEarnings = async (req, res) => {
           providerPayment.currency !== payment.currency ||
           providerPayment.status !== "captured"
         ) {
+          skippedReasons.push({
+            paymentId: String(payment._id),
+            reason: "Razorpay payment details do not match or payment is not captured",
+            providerStatus: providerPayment.status,
+            providerAmount: providerPayment.amount,
+            providerCurrency: providerPayment.currency,
+          });
           skippedCount++;
           continue;
         }
 
-        // Avoid creating an earning that already exists
+        // 3. Do not create duplicate earnings
         const existing = await Earning.findOne({
           booking: booking._id,
         });
 
         if (existing) {
+          skippedReasons.push({
+            paymentId: String(payment._id),
+            bookingId: String(booking._id),
+            reason: "Earning already exists for this booking",
+            earningId: String(existing._id),
+            earningStatus: existing.status,
+          });
           skippedCount++;
           continue;
         }
 
+        // 4. Validate mentor share
         if (
           !Number.isSafeInteger(booking.mentorGrossPaise) ||
-          booking.mentorGrossPaise < 0
+          booking.mentorGrossPaise <= 0 ||
+          !booking.mentor
         ) {
+          skippedReasons.push({
+            paymentId: String(payment._id),
+            bookingId: String(booking._id),
+            reason: "Invalid mentor, or mentorGrossPaise is missing/invalid",
+            mentorGrossPaise: booking.mentorGrossPaise,
+          });
           skippedCount++;
           continue;
         }
 
+        // 5. Create earning only for a verified payment
         await Earning.create({
           booking: booking._id,
           mentor: booking.mentor,
@@ -76,14 +118,21 @@ const recoverEarnings = async (req, res) => {
 
         recoveredCount++;
       } catch (paymentError) {
-        // One bad record must not stop the remaining records
+        const reason =
+          paymentError?.error?.description ||
+          paymentError?.message ||
+          "Verification failed";
+
         console.error(
           "Skipping payment record:",
           payment._id,
-          paymentError?.error?.description ||
-            paymentError?.message ||
-            "Verification failed"
+          reason
         );
+
+        skippedReasons.push({
+          paymentId: String(payment._id),
+          reason,
+        });
 
         skippedCount++;
       }
@@ -92,8 +141,10 @@ const recoverEarnings = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Earning recovery completed",
+      checkedPayments: payments.length,
       recoveredCount,
       skippedCount,
+      skippedReasons,
     });
   } catch (error) {
     console.error("Recover earnings error:", error);
@@ -101,6 +152,7 @@ const recoverEarnings = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Earnings recovery failed",
+      error: error.message,
     });
   }
 };

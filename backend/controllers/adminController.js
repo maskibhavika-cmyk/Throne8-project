@@ -27,7 +27,7 @@ const getAdminStats = async (req, res) => {
         totalBookings,
         totalPayments,
         successfulPayments: paidPayments.length,
-        totalRevenue: totalRevenuePaise / 100,
+        totalReverificationStatusenue: totalRevenuePaise / 100,
       },
     });
   } catch (error) {

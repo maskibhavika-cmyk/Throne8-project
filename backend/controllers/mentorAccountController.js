@@ -42,5 +42,37 @@ const createMentorAccount = async (req, res) => {
     });
   }
 };
+const getVerifiedMentors = async (req, res) => {
+  try {
+    const MentorAccount = require("../models/MentorAccount");
+    const User = require("../models/User");
 
-module.exports = { createMentorAccount };
+    const accounts = await MentorAccount.find({
+      verificationStatus: "VERIFIED",
+      isOnHold: false,
+    }).populate("mentor", "name email role");
+
+    const mentors = accounts
+      .filter((account) => account.mentor && account.mentor.role === "mentor")
+      .map((account) => ({
+        _id: account.mentor._id,
+        name: account.mentor.name,
+        email: account.mentor.email,
+      }));
+
+    return res.status(200).json({
+      success: true,
+      mentors,
+    });
+  } catch (error) {
+    console.error("Get verified mentors error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load verified mentors",
+    });
+  }
+};
+module.exports = {
+  createMentorAccount,
+  getVerifiedMentors,
+};

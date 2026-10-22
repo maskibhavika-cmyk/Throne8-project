@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const {
   createMentorAccount,
+  getVerifiedMentors,
 } = require("../controllers/mentorAccountController");
 
 const Booking = require("../models/Booking");
@@ -60,6 +61,12 @@ router.post(
   authMiddleware,
   authorizeRoles("mentor"),
   createMentorAccount
+);
+router.get(
+  "/mentors",
+  authMiddleware,
+  authorizeRoles("student"),
+  getVerifiedMentors
 );
 router.get("/:bookingId", authMiddleware, getBookingById);
 

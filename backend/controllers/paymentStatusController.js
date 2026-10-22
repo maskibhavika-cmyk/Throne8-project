@@ -5,7 +5,7 @@ const Payment = require("../models/Payment");
 const getPaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?._id || req.user?.id;
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -23,7 +23,10 @@ const getPaymentStatus = async (req, res) => {
       });
     }
 
-    // Student can view only their own payment; admin can view any.
+    console.log("PAYMENT STUDENT ID:", String(payment.student));
+    console.log("LOGGED-IN USER ID:", String(userId));
+    console.log("LOGGED-IN ROLE:", req.user?.role);
+
     if (
       req.user?.role !== "admin" &&
       String(payment.student) !== String(userId)
