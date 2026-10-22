@@ -1,4 +1,3 @@
-
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 const Payment = require("../models/Payment");
@@ -9,16 +8,20 @@ const getAdminStats = async (req, res) => {
   try {
     const [totalUsers, totalBookings, totalPayments, paidPayments] =
       await Promise.all([
-     User.countDocuments(),
+        User.countDocuments(),
         Booking.countDocuments(),
         Payment.countDocuments(),
         Payment.find({ status: "PAID" }).select("amountPaise"),
       ]);
 
     const totalRevenuePaise = paidPayments.reduce(
-      (total, payment) => total + payment.amountPaise,
+      (total, payment) => total + (payment.amountPaise || 0),
       0
     );
+
+    const totalRevenue = totalRevenuePaise / 100;
+    const commission = totalRevenue * 0.2;
+    const mentorShare = totalRevenue * 0.8;
 
     res.json({
       success: true,
@@ -27,7 +30,9 @@ const getAdminStats = async (req, res) => {
         totalBookings,
         totalPayments,
         successfulPayments: paidPayments.length,
-        totalReverificationStatusenue: totalRevenuePaise / 100,
+        totalRevenue,
+        commission,
+        mentorShare,
       },
     });
   } catch (error) {
@@ -130,7 +135,6 @@ const verifyMentorAccount = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   getAdminStats,

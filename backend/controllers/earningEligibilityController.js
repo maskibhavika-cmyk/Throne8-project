@@ -1,4 +1,3 @@
-
 const Earning = require("../models/Earning");
 const Refund = require("../models/Refund");
 
@@ -50,5 +49,46 @@ const updateEligibleEarnings = async (req, res) => {
     });
   }
 };
+const getEligibleMentors = async (req, res) => {
+  try {
+    let eligible = await Earning.find({ status: { $in: ["PENDING", "ELIGIBLE"] } })
+      .populate("mentor", "name email")
+      .populate("booking")
+      .sort({ createdAt: -1 });
 
-module.exports = { updateEligibleEarnings };
+    if (eligible.length > 0 && !eligible[0].mentor) {
+      eligible = await Earning.find({ status: { $in: ["PENDING", "ELIGIBLE"] } })
+        .populate("mentorId", "name email")
+        .populate("bookingId")
+        .sort({ createdAt: -1 });
+
+      const formatted = eligible.map(e => ({
+        _id: e._id,
+        mentorName: e.mentorId?.name || "Mentor",
+        mentorEmail: e.mentorId?.email || "",
+        amount: (e.amountPaise || 0) / 100,
+        amountPaise: e.amountPaise || 0,
+        status: e.status,
+        eligibleAt: e.eligibleAt,
+        bookingId: e.bookingId?._id || e.booking?._id
+      }));
+      return res.json({ success: true, mentors: formatted });
+    }
+
+    const formatted = eligible.map(e => ({
+      _id: e._id,
+      mentorName: e.mentor?.name || "Mentor",
+      mentorEmail: e.mentor?.email || "",
+      amount: (e.amountPaise || 0) / 100,
+      amountPaise: e.amountPaise || 0,
+      status: e.status,
+      eligibleAt: e.eligibleAt,
+      bookingId: e.booking?._id
+    }));
+
+    res.json({ success: true, mentors: formatted });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to load eligible mentors", error: err.message });
+  }
+};
+module.exports = { updateEligibleEarnings, getEligibleMentors };

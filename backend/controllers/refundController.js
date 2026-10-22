@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const Refund = require("../models/Refund");
 const Payment = require("../models/Payment");
@@ -33,7 +32,6 @@ const createRefundRequest = async (req, res) => {
       });
     }
 
-    // Only booking student or admin can request a refund.
     if (
       req.user?.role !== "admin" &&
       String(booking.student) !== String(userId)
@@ -60,7 +58,7 @@ const createRefundRequest = async (req, res) => {
 
     const existingRefunds = await Refund.find({
       payment: payment._id,
-      status: { $in: ["PENDING", "PROCESSING", "COMPLETED"] },
+      status: { $in: ["PENDING", "PROCESSING", "APPROVED", "COMPLETED"] },
     });
 
     const totalRefundPaise = existingRefunds.reduce(
@@ -78,6 +76,8 @@ const createRefundRequest = async (req, res) => {
     const refund = await Refund.create({
       booking: booking._id,
       payment: payment._id,
+      student: booking.student,
+      mentor: booking.mentor,
       amountPaise,
       reason: reason.trim(),
     });
@@ -95,5 +95,50 @@ const createRefundRequest = async (req, res) => {
     });
   }
 };
+const getAllRefunds = async (req, res) => {
+  try {
+    const refundsRaw = await Refund.find().sort({ createdAt: -1 }).lean();
+    const refunds = await Promise.all(refundsRaw.map(async (r) => {
+      const sId = r.student?.$oid || r.student;
+      const mId = r.mentor?.$oid || r.mentor;
+      let student = null, mentor = null;
+      try { if (sId) student = await User.findById(sId).select("name email").lean(); } catch {}
+      try { if (mId) mentor = await User.findById(mId).select("name email").lean(); } catch {}
+      return { ...r, student, mentor };
+    }));
+    res.json({ success: true, refunds });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed" });
+  }
+};
+const approveRefund = async (req, res) => {
+  try {
+    const refund = await Refund.findByIdAndUpdate(
+      req.params.id,
+      { status: "APPROVED" },
+      { new: true }
+    );
+    if (!refund) return res.status(404).json({ success: false, message: "Refund nahi mila" });
+    res.json({ success: true, message: "Refund approved", refund });
+  } catch (err) {
+    console.error("Approve error:", err);
+    res.status(500).json({ success: false, message: "Approve failed", error: err.message });
+  }
+};
 
-module.exports = { createRefundRequest };
+const rejectRefund = async (req, res) => {
+  try {
+    const refund = await Refund.findByIdAndUpdate(
+      req.params.id,
+      { status: "REJECTED" },
+      { new: true }
+    );
+    if (!refund) return res.status(404).json({ success: false, message: "Refund nahi mila" });
+    res.json({ success: true, message: "Refund rejected", refund });
+  } catch (err) {
+    console.error("Reject error:", err);
+    res.status(500).json({ success: false, message: "Reject failed", error: err.message });
+  }
+};
+
+module.exports = { createRefundRequest, getAllRefunds, approveRefund, rejectRefund };

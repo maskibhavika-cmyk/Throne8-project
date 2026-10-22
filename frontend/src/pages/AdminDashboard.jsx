@@ -89,6 +89,30 @@ function AdminDashboard() {
   >
     💳 &nbsp; Payments
   </NavLink>
+  <NavLink
+    to="/admin-finance"
+    className={({ isActive }) =>
+      isActive ? "sidebar-link active" : "sidebar-link"
+    }
+  >
+    💰 &nbsp; Finance
+  </NavLink>
+  <NavLink
+    to="/admin-earnings-queue"
+    className={({ isActive }) =>
+      isActive ? "sidebar-link active" : "sidebar-link"
+    }
+  >
+    ⏳ &nbsp; Earnings Queue
+  </NavLink>
+  <NavLink
+    to="/admin-refunds"
+    className={({ isActive }) =>
+      isActive ? "sidebar-link active" : "sidebar-link"
+    }
+  >
+    ↩️ &nbsp; Refunds
+  </NavLink>
 
   <div className="sidebar-bottom">Admin Panel</div>
 </aside>

@@ -17,6 +17,9 @@ import AdminBookings from "./pages/AdminBookings";
 import Payments from "./pages/Payments";
 import Earnings from "./pages/mentor/Earnings";
 import Payouts from "./pages/mentor/Payouts";
+import AdminFinance from "./pages/AdminFinance";
+import AdminEarningsQueue from "./pages/AdminEarningsQueue";
+import AdminRefunds from "./pages/AdminRefunds";
 import "./App.css";
 
 
@@ -257,7 +260,7 @@ function App() {
             </ProtectedAdminRoute>
           }
         />
-
+    
         <Route
           path="/admin-users"
           element={
@@ -287,6 +290,30 @@ function App() {
           }
         />
         <Route
+  path="/admin-finance"
+  element={
+    <ProtectedAdminRoute>
+      <AdminFinance />
+    </ProtectedAdminRoute>
+  }
+/>
+<Route
+  path="/admin-earnings-queue"
+  element={
+    <ProtectedAdminRoute>
+      <AdminEarningsQueue />
+    </ProtectedAdminRoute>
+  }
+/>
+<Route
+  path="/admin-refunds"
+  element={
+    <ProtectedAdminRoute>
+      <AdminRefunds />
+    </ProtectedAdminRoute>
+  }
+/>
+        <Route
   path="/mentor-bookings"
   element={
     <ProtectedMentorPage>
@@ -294,8 +321,7 @@ function App() {
     </ProtectedMentorPage>
   }
 />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
+<Route path="*" element={<h1 style={{padding:50}}>404 - Route match nahi hua: URL dekho</h1>} />
       </Routes>
     </BrowserRouter>
   );
