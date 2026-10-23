@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 const Earning = require("../models/Earning");
 const Refund = require("../models/Refund");
-
+const { payoutQueue } = require("../jobs/payoutQueue");
 // Get booking details
 const getBookingById = async (req, res) => {
   try {
@@ -192,6 +192,20 @@ const completeBooking = async (req, res) => {
         runValidators: true,
       }
     );
+    if (!pendingRefund) {
+  await payoutQueue.add(
+    "make-earning-eligible",
+    { bookingId: String(completedBooking._id) },
+    {
+      delay: Math.max(
+        0,
+        payoutEligibleAt.getTime() - Date.now()
+      ),
+      jobId: `payout-${completedBooking._id}`,
+      removeOnComplete: true,
+    }
+  );
+}
 
     if (pendingRefund && earning.status !== "ON_HOLD") {
       earning.status = "ON_HOLD";

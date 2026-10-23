@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const { approvePayout } = require("../controllers/payoutApprovalController");
+
 const { getMentorPayouts } = require("../controllers/payoutController");
 const { createRefundRequest, getAllRefunds, approveRefund, rejectRefund } = require("../controllers/refundController");
 const { getMentorEarnings } = require("../controllers/earningController");
@@ -79,6 +81,13 @@ router.get(
   authMiddleware,
   authorizeRoles("mentor"),
   getMentorEarnings
+);
+
+router.post(
+  "/payouts/:id/approve",
+  authMiddleware,
+  authorizeRoles("admin"),
+  approvePayout
 );
 
 // Mentor payouts
