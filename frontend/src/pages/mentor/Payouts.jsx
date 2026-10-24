@@ -80,7 +80,7 @@ export default function Payouts() {
 
       try {
         const res = await axios.get(
-          `${API}/payments/payouts/${mentorId}`,
+        `${API}/payouts/${mentorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

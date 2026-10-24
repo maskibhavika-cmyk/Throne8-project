@@ -5,10 +5,10 @@ const cors = require("cors");
 const app = express();
 const adminRoutes = require("./routes/adminRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const payoutRoutes = require("./routes/payoutRoutes");
 const authRoutes = require("./routes/authRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const { receiveWebhook } = require("./controllers/webhookController");
-
 app.use(cors());
 
 // Razorpay webhook: raw body parser se pehle hona chahiye.
@@ -26,6 +26,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/payouts", payoutRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/admin", adminRoutes);

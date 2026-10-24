@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import "./AdminBookings.css";
+
 function AdminBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,27 +10,85 @@ function AdminBookings() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [actionLoading, setActionLoading] = useState("");
+
+  const getAuthHeaders = () => ({
+    Authorization: "Bearer " + localStorage.getItem("token"),
+  });
+
+  const fetchBookings = async () => {
+    const res = await axios.get(
+      "http://localhost:5000/api/v1/admin/bookings",
+      { headers: getAuthHeaders() }
+    );
+
+    setBookings(
+      Array.isArray(res.data.bookings) ? res.data.bookings : []
+    );
+  };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+  let ignore = false;
 
-    axios
-      .get("http://localhost:5000/api/v1/admin/bookings", {
-       headers: {
-  Authorization: "Bearer " + token,
-},
-      })
-      .then((res) => {
-        const data = res.data.bookings;
-        setBookings(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
+  const loadBookings = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/api/v1/admin/bookings",
+        { headers: getAuthHeaders() }
+      );
+
+      if (!ignore) {
+        setBookings(
+          Array.isArray(res.data.bookings) ? res.data.bookings : []
+        );
+      }
+    } catch (err) {
+      if (!ignore) {
         setError(
           err.response?.data?.message || "Unable to load bookings."
         );
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      }
+    } finally {
+      if (!ignore) {
+        setLoading(false);
+      }
+    }
+  };
+
+  loadBookings();
+
+  return () => {
+    ignore = true;
+  };
+}, []);
+  const handleCompleteBooking = async (bookingId) => {
+    const confirmed = window.confirm(
+      "Kya tum sach mein is session ko completed mark karna chahte ho?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setActionLoading(bookingId);
+      setError("");
+
+      await axios.patch(
+        `http://localhost:5000/api/v1/bookings/${bookingId}/complete`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+
+      await fetchBookings();
+
+      window.alert("Booking successfully completed!");
+    } catch (err) {
+      window.alert(
+        err.response?.data?.message || "Booking complete nahi hui."
+      );
+    } finally {
+      setActionLoading("");
+    }
+  };
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -43,7 +102,9 @@ function AdminBookings() {
         booking._id || "",
         booking.status || "",
         booking.paymentStatus || "",
-      ].some((value) => String(value).toLowerCase().includes(query));
+      ].some((value) =>
+        String(value).toLowerCase().includes(query)
+      );
 
       const matchesStatus =
         statusFilter === "ALL" || booking.status === statusFilter;
@@ -65,7 +126,11 @@ function AdminBookings() {
   };
 
   const stats = [
-    { label: "Total Bookings", value: bookings.length, icon: "▦" },
+    {
+      label: "Total Bookings",
+      value: bookings.length,
+      icon: "▦",
+    },
     {
       label: "Confirmed",
       value: bookings.filter((b) => b.status === "CONFIRMED").length,
@@ -89,8 +154,11 @@ function AdminBookings() {
         <div>
           <span className="ab-eyebrow">THRONE8 / ADMINISTRATION</span>
           <h1>Bookings Management</h1>
-          <p>Monitor sessions, booking statuses and payment records.</p>
+          <p>
+            Monitor sessions, booking statuses and payment records.
+          </p>
         </div>
+
         <div className="ab-header-tag">ADMIN CONTROL CENTER</div>
       </header>
 
@@ -108,8 +176,11 @@ function AdminBookings() {
         <div className="ab-panel-heading">
           <div>
             <h2>All Bookings</h2>
-            <p>Review every booking registered on the platform.</p>
+            <p>
+              Review every booking registered on the platform.
+            </p>
           </div>
+
           <span className="ab-count">
             {filteredBookings.length} of {bookings.length} bookings
           </span>
@@ -150,7 +221,9 @@ function AdminBookings() {
           </select>
         </div>
 
-        {loading && <div className="ab-message">Loading bookings...</div>}
+        {loading && (
+          <div className="ab-message">Loading bookings...</div>
+        )}
 
         {!loading && error && (
           <div className="ab-message ab-error">{error}</div>
@@ -167,54 +240,99 @@ function AdminBookings() {
                   <th>AMOUNT</th>
                   <th>BOOKING STATUS</th>
                   <th>PAYMENT STATUS</th>
+                  <th>ACTION</th>
                 </tr>
               </thead>
+
               <tbody>
-                {filteredBookings.map((booking) => (
-                  <tr key={booking._id}>
-                    <td>
-                      <strong>{booking.student?.name || "N/A"}</strong>
-                      <small>
-                        {booking.student?.email || "Student details unavailable"}
-                      </small>
-                    </td>
-                    <td>
-                      <strong>{booking.mentor?.name || "N/A"}</strong>
-                      <small>
-                        {booking.mentor?.email || "Mentor details unavailable"}
-                      </small>
-                    </td>
-                    <td>
-                      {booking.sessionDate
-                        ? new Date(booking.sessionDate).toLocaleDateString(
-                            "en-IN",
-                            {
+                {filteredBookings.map((booking) => {
+                  const canComplete =
+                    booking.status === "CONFIRMED" &&
+                    booking.paymentStatus === "PAID" &&
+                    booking.sessionDate &&
+                    new Date(booking.sessionDate) <= new Date() &&
+                    !booking.completedAt;
+
+                  return (
+                    <tr key={booking._id}>
+                      <td>
+                        <strong>
+                          {booking.student?.name || "N/A"}
+                        </strong>
+                        <small>
+                          {booking.student?.email ||
+                            "Student details unavailable"}
+                        </small>
+                      </td>
+
+                      <td>
+                        <strong>
+                          {booking.mentor?.name || "N/A"}
+                        </strong>
+                        <small>
+                          {booking.mentor?.email ||
+                            "Mentor details unavailable"}
+                        </small>
+                      </td>
+
+                      <td>
+                        {booking.sessionDate
+                          ? new Date(
+                              booking.sessionDate
+                            ).toLocaleDateString("en-IN", {
                               day: "2-digit",
                               month: "short",
                               year: "numeric",
+                            })
+                          : "N/A"}
+                      </td>
+
+                      <td className="ab-amount">
+                        {formatAmount(booking.amountPaise)}
+                      </td>
+
+                      <td>
+                        <span className={badgeClass(booking.status)}>
+                          {booking.status || "UNKNOWN"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={badgeClass(booking.paymentStatus)}
+                        >
+                          {booking.paymentStatus || "UNKNOWN"}
+                        </span>
+                      </td>
+
+                      <td>
+                        {canComplete ? (
+                          <button
+                            type="button"
+                            disabled={actionLoading === booking._id}
+                            onClick={() =>
+                              handleCompleteBooking(booking._id)
                             }
-                          )
-                        : "N/A"}
-                    </td>
-                    <td className="ab-amount">
-                      {formatAmount(booking.amountPaise)}
-                    </td>
-                    <td>
-                      <span className={badgeClass(booking.status)}>
-                        {booking.status || "UNKNOWN"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={badgeClass(booking.paymentStatus)}>
-                        {booking.paymentStatus || "UNKNOWN"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                          >
+                            {actionLoading === booking._id
+                              ? "Completing..."
+                              : "Complete Booking"}
+                          </button>
+                        ) : (
+                          <span>
+                            {booking.status === "COMPLETED"
+                              ? "Completed"
+                              : "—"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="ab-empty">
+                    <td colSpan={7} className="ab-empty">
                       No bookings match your search or filters.
                     </td>
                   </tr>

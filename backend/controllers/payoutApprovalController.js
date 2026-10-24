@@ -4,6 +4,8 @@ const Payout = require("../models/Payout");
 const Earning = require("../models/Earning");
 
 const approvePayout = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
     const { id } = req.params;
 
@@ -14,58 +16,82 @@ const approvePayout = async (req, res) => {
       });
     }
 
-    const payout = await Payout.findById(id);
+    let approvedPayout = null;
+    let availablePaise = 0;
 
-    if (!payout) {
-      return res.status(404).json({
-        success: false,
-        message: "Payout not found",
-      });
-    }
+    await session.withTransaction(async () => {
+      const payout = await Payout.findOne({
+        _id: id,
+        status: "PENDING",
+      }).session(session);
 
-    if (payout.status !== "PENDING") {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot approve payout with status ${payout.status}`,
-      });
-    }
+      if (!payout) {
+        const existing = await Payout.findById(id).session(session);
 
-    const eligibleEarnings = await Earning.find({
-      mentor: payout.mentor,
-      status: "ELIGIBLE",
+        throw new Error(
+          existing
+            ? `Payout cannot be approved with status ${existing.status}`
+            : "Payout not found"
+        );
+      }
+
+      const eligibleEarnings = await Earning.find({
+        mentor: payout.mentor,
+        status: "ELIGIBLE",
+      }).session(session);
+
+      availablePaise = eligibleEarnings.reduce(
+        (total, earning) => total + earning.amountPaise,
+        0
+      );
+
+      if (availablePaise < payout.amountPaise) {
+        throw new Error("Insufficient eligible earnings");
+      }
+
+      // Conditional update prevents approving the same pending
+      // payout twice. This does not reserve or transfer funds.
+      const updated = await Payout.findOneAndUpdate(
+        { _id: id, status: "PENDING" },
+        {
+          $set: {
+            status: "APPROVED",
+            approvedAt: new Date(),
+          },
+        },
+        { new: true, session, runValidators: true }
+      );
+
+      if (!updated) {
+        throw new Error("Payout status changed; refresh and retry");
+      }
+
+      approvedPayout = updated;
     });
-
-    const availablePaise = eligibleEarnings.reduce(
-      (total, earning) => total + earning.amountPaise,
-      0
-    );
-
-    if (availablePaise < payout.amountPaise) {
-      return res.status(400).json({
-        success: false,
-        message: "Insufficient eligible earnings",
-        availablePaise,
-        requestedPaise: payout.amountPaise,
-      });
-    }
-
-    payout.status = "APPROVED";
-    payout.approvedAt = new Date();
-
-    await payout.save();
 
     return res.status(200).json({
       success: true,
-      message: "Payout approved. No bank transfer has been initiated.",
-      payout,
+      message: "Payout approved. No bank transfer was initiated.",
+      payout: approvedPayout,
+      availablePaise,
     });
   } catch (error) {
-    console.error("Approve payout error:", error.message);
+    console.error("Payout approval error:", error.message);
 
-    return res.status(500).json({
+    const status = error.message === "Payout not found"
+      ? 404
+      : error.message.startsWith("Payout cannot be approved") ||
+        error.message === "Insufficient eligible earnings" ||
+        error.message.startsWith("Payout status changed")
+      ? 409
+      : 500;
+
+    return res.status(status).json({
       success: false,
-      message: "Unable to approve payout",
+      message: error.message || "Unable to approve payout",
     });
+  } finally {
+    await session.endSession();
   }
 };
 

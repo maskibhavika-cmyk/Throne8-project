@@ -13,7 +13,7 @@ const { updateEligibleEarnings, getEligibleMentors } = require("../controllers/e
 const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware");
 const { verifyPayment } = require("../controllers/verifyPaymentController");
 const { recoverEarnings } = require("../controllers/recoverEarningsController");
-
+const { createPayoutRequest } = require("../controllers/payoutRequestController");
 router.get("/test", (req, res) => {
   res.json({
     success: true,
@@ -88,6 +88,13 @@ router.post(
   authMiddleware,
   authorizeRoles("admin"),
   approvePayout
+);
+// Mentor: Create payout request
+router.post(
+  "/payouts/request",
+  authMiddleware,
+  authorizeRoles("mentor"),
+  createPayoutRequest
 );
 
 // Mentor payouts

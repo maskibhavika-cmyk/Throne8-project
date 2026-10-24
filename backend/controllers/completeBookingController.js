@@ -30,6 +30,10 @@ const getBookingById = async (req, res) => {
     const userId = req.user?._id || req.user?.id || req.user?.userId;
     const role = req.user?.role;
 
+console.log("Logged-in role:", role);
+console.log("Logged-in userId:", String(userId));
+console.log("Booking mentorId:", String(booking.mentor));
+
     if (!userId || !["student", "mentor", "admin"].includes(role)) {
       return res.status(403).json({
         success: false,
@@ -212,10 +216,6 @@ const completeBooking = async (req, res) => {
       await earning.save();
     }
 
-    // TEMPORARILY DISABLED:
-    // BullMQ requires Redis 5.0+, but the installed Redis is 3.0.504.
-    // Earning remains PENDING until payout eligibility is processed
-    // using a compatible Redis/BullMQ setup.
 
     return res.status(200).json({
       success: true,
