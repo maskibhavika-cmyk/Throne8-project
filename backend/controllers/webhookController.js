@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const WebhookEvent = require("../models/WebhookEvent");
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
-
+const Notification = require("../models/Notification");
 const receiveWebhook = async (req, res) => {
   try {
     const signature = req.headers["x-razorpay-signature"];
@@ -155,6 +155,22 @@ const receiveWebhook = async (req, res) => {
       booking.paymentStatus = "PAID";
       booking.status = "CONFIRMED";
       await booking.save();
+      await Notification.insertMany([
+  {
+    recipient: booking.student,
+    type: "PAYMENT_SUCCESS",
+    title: "Payment Successful",
+    message: "Your payment was successful and your mentorship booking is confirmed.",
+    link: "/bookings",
+  },
+  {
+    recipient: booking.mentor,
+    type: "BOOKING_CONFIRMED",
+    title: "New Booking Confirmed",
+    message: "A student's mentorship booking has been confirmed after successful payment.",
+    link: "/mentor/bookings",
+  },
+]);
     }
 
     storedEvent.processed = true;

@@ -8,6 +8,10 @@ const {
 } = require("../controllers/payoutController");
 
 const {
+  approvePayout,
+} = require("../controllers/payoutApprovalController");
+
+const {
   authMiddleware,
   authorizeRoles,
 } = require("../middleware/authMiddleware");
@@ -24,6 +28,14 @@ router.get(
   authMiddleware,
   authorizeRoles("mentor", "admin"),
   getMentorPayouts
+);
+
+// Admin: approve a payout request
+router.patch(
+  "/admin/:id/approve",
+  authMiddleware,
+  authorizeRoles("admin"),
+  approvePayout
 );
 
 module.exports = router;

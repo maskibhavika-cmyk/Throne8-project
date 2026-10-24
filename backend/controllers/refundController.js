@@ -1,8 +1,12 @@
+
 const mongoose = require("mongoose");
 const Refund = require("../models/Refund");
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
 
+// Create refund request
 const createRefundRequest = async (req, res) => {
   try {
     const { bookingId, paymentId, amountPaise, reason } = req.body;
@@ -52,13 +56,15 @@ const createRefundRequest = async (req, res) => {
     if (payment.status !== "PAID") {
       return res.status(400).json({
         success: false,
-        message: "Only paid payments can be refunded",
+        message: "Only paid bookings can be refunded",
       });
     }
 
     const existingRefunds = await Refund.find({
       payment: payment._id,
-      status: { $in: ["PENDING", "PROCESSING", "APPROVED", "COMPLETED"] },
+      status: {
+        $in: ["PENDING", "PROCESSING", "APPROVED", "COMPLETED"],
+      },
     });
 
     const totalRefundPaise = existingRefunds.reduce(
@@ -69,7 +75,7 @@ const createRefundRequest = async (req, res) => {
     if (totalRefundPaise + amountPaise > payment.amountPaise) {
       return res.status(400).json({
         success: false,
-        message: "Refund exceeds remaining payment amount",
+        message: "Refund amount exceeds the remaining paid amount",
       });
     }
 
@@ -82,63 +88,190 @@ const createRefundRequest = async (req, res) => {
       reason: reason.trim(),
     });
 
+    // Notifications: student and mentor
+    try {
+      await Notification.insertMany([
+        {
+          recipient: booking.student,
+          type: "REFUND_UPDATE",
+          title: "Refund Request Submitted",
+          message: "Your refund request has been submitted successfully.",
+          link: "/refunds",
+        },
+        {
+          recipient: booking.mentor,
+          type: "REFUND_UPDATE",
+          title: "Refund Request Received",
+          message: "A refund request has been submitted for a mentorship booking.",
+          link: "/mentor/bookings",
+        },
+      ]);
+    } catch (notificationError) {
+      console.error(
+        "Refund notification error:",
+        notificationError.message
+      );
+    }
+
     return res.status(201).json({
       success: true,
       message: "Refund request created",
       refund,
     });
   } catch (error) {
-    console.error("Create refund request error:", error.message);
+    console.error("Create refund request error:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Unable to create refund request",
+      message: "Failed to create refund request",
     });
   }
 };
+
+// Get all refunds (admin)
 const getAllRefunds = async (req, res) => {
   try {
-    const refundsRaw = await Refund.find().sort({ createdAt: -1 }).lean();
-    const refunds = await Promise.all(refundsRaw.map(async (r) => {
-      const sId = r.student?.$oid || r.student;
-      const mId = r.mentor?.$oid || r.mentor;
-      let student = null, mentor = null;
-      try { if (sId) student = await User.findById(sId).select("name email").lean(); } catch {}
-      try { if (mId) mentor = await User.findById(mId).select("name email").lean(); } catch {}
-      return { ...r, student, mentor };
-    }));
-    res.json({ success: true, refunds });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Failed" });
+    const refunds = await Refund.find().sort({ createdAt: -1 });
+
+    const refundsWithUsers = await Promise.all(
+      refunds.map(async (refund) => {
+        const student = await User.findById(refund.student).select(
+          "name email"
+        );
+        const mentor = await User.findById(refund.mentor).select(
+          "name email"
+        );
+
+        return {
+          ...refund.toObject(),
+          student,
+          mentor,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: refundsWithUsers.length,
+      refunds: refundsWithUsers,
+    });
+  } catch (error) {
+    console.error("Get all refunds error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch refunds",
+    });
   }
 };
+
+// Approve refund (admin)
 const approveRefund = async (req, res) => {
   try {
-    const refund = await Refund.findByIdAndUpdate(
-      req.params.id,
-      { status: "APPROVED" },
-      { new: true }
-    );
-    if (!refund) return res.status(404).json({ success: false, message: "Refund nahi mila" });
-    res.json({ success: true, message: "Refund approved", refund });
-  } catch (err) {
-    console.error("Approve error:", err);
-    res.status(500).json({ success: false, message: "Approve failed", error: err.message });
+    const refund = await Refund.findById(req.params.id);
+
+    if (!refund) {
+      return res.status(404).json({
+        success: false,
+        message: "Refund not found",
+      });
+    }
+
+    if (refund.status !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending refunds can be approved",
+      });
+    }
+
+    refund.status = "APPROVED";
+    await refund.save();
+
+    try {
+      await Notification.create({
+        recipient: refund.student,
+        type: "REFUND_UPDATE",
+        title: "Refund Approved",
+        message: "Your refund request has been approved.",
+        link: "/refunds",
+      });
+    } catch (notificationError) {
+      console.error(
+        "Refund approval notification error:",
+        notificationError.message
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund approved",
+      refund,
+    });
+  } catch (error) {
+    console.error("Approve refund error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to approve refund",
+    });
   }
 };
 
+// Reject refund (admin)
 const rejectRefund = async (req, res) => {
   try {
-    const refund = await Refund.findByIdAndUpdate(
-      req.params.id,
-      { status: "REJECTED" },
-      { new: true }
-    );
-    if (!refund) return res.status(404).json({ success: false, message: "Refund nahi mila" });
-    res.json({ success: true, message: "Refund rejected", refund });
-  } catch (err) {
-    console.error("Reject error:", err);
-    res.status(500).json({ success: false, message: "Reject failed", error: err.message });
+    const refund = await Refund.findById(req.params.id);
+
+    if (!refund) {
+      return res.status(404).json({
+        success: false,
+        message: "Refund not found",
+      });
+    }
+
+    if (refund.status !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending refunds can be rejected",
+      });
+    }
+
+    refund.status = "REJECTED";
+    await refund.save();
+
+    try {
+      await Notification.create({
+        recipient: refund.student,
+        type: "REFUND_UPDATE",
+        title: "Refund Rejected",
+        message: "Your refund request has been rejected.",
+        link: "/refunds",
+      });
+    } catch (notificationError) {
+      console.error(
+        "Refund rejection notification error:",
+        notificationError.message
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund rejected",
+      refund,
+    });
+  } catch (error) {
+    console.error("Reject refund error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reject refund",
+    });
   }
 };
 
-module.exports = { createRefundRequest, getAllRefunds, approveRefund, rejectRefund };
+module.exports = {
+  createRefundRequest,
+  getAllRefunds,
+  approveRefund,
+  rejectRefund,
+};

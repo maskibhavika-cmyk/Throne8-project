@@ -1,0 +1,256 @@
+
+.notifications-page {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 24px;
+  color: #202033;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e8e8ef;
+}
+
+.notifications-eyebrow {
+  color: #7562e8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.notifications-header h1 {
+  margin: 8px 0;
+  font-size: 32px;
+}
+
+.notifications-subtitle {
+  margin: 0;
+  color: #77778a;
+  line-height: 1.6;
+}
+
+.unread-summary {
+  min-width: 80px;
+  padding: 15px;
+  text-align: center;
+  background: #f0edff;
+  border-radius: 14px;
+  color: #6650d9;
+}
+
+.unread-summary span {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.unread-summary small {
+  font-size: 12px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 16px;
+}
+
+.notification-card {
+  display: flex;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #e8e8ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(25, 25, 50, 0.04);
+}
+
+.notification-card.is-unread {
+  border-left: 4px solid #7562e8;
+  background: #faf9ff;
+}
+
+.notification-card.is-read {
+  opacity: 0.8;
+}
+
+.notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #f0edff;
+  font-size: 23px;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-title-row h3 {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.unread-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #7562e8;
+}
+
+.notification-content > p {
+  margin: 10px 0;
+  color: #626276;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.notification-content > small {
+  color: #9090a0;
+  font-size: 12px;
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.notification-actions button,
+.notification-empty button,
+.notification-refresh {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 9px;
+  background: #7562e8;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notification-actions button:disabled,
+.notification-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notification-actions a {
+  color: #6650d9;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.notification-actions a:hover {
+  text-decoration: underline;
+}
+
+.notification-empty,
+.notification-state {
+  padding: 55px 20px;
+  text-align: center;
+  border: 1px dashed #dcd9ed;
+  border-radius: 16px;
+  background: #fcfbff;
+}
+
+.empty-bell {
+  margin-bottom: 14px;
+  font-size: 42px;
+}
+
+.notification-empty h2 {
+  margin: 0 0 10px;
+}
+
+.notification-empty p {
+  margin-bottom: 22px;
+  color: #77778a;
+  line-height: 1.6;
+}
+
+.notification-error {
+  margin-bottom: 20px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #fff0f0;
+  color: #b42318;
+  overflow-wrap: anywhere;
+}
+
+.notification-refresh {
+  display: block;
+  margin: 24px auto 0;
+}
+
+.notification-nav {
+  position: relative;
+  white-space: nowrap;
+}
+
+.notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 20px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 600px) {
+  .notifications-page {
+    margin: 20px auto;
+    padding: 16px;
+  }
+
+  .notifications-header {
+    align-items: flex-start;
+  }
+
+  .notifications-header h1 {
+    font-size: 26px;
+  }
+
+  .unread-summary {
+    min-width: 60px;
+    padding: 10px;
+  }
+
+  .notification-card {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .notification-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+  }
+
+  .notification-title-row h3 {
+    font-size: 15px;
+  }
+}
