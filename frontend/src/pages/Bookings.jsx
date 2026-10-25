@@ -1,260 +1,108 @@
+// import { useEffect, useState } from "react";
+// import "./Bookings.css";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
-import "./Bookings.css";
+// const Bookings = () => {
+//   const [bookings, setBookings] = useState([]);
+//   const [filter, setFilter] = useState("All");
+//   const [loading, setLoading] = useState(true);
+//   const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const API = "http://localhost:5000/api/v1";
+//   useEffect(() => {
+//     const fetchBookings = async () => {
+//       try {
+//         const res = await fetch(`${API}/bookings/my`, {
+//           headers: {
+//             Authorization: `Bearer ${localStorage.getItem("token")}`,
+//           },
+//         });
+//         const data = await res.json();
+//         if (data.success) {
+//           setBookings(data.bookings || []);
+//         }
+//       } catch (err) {
+//         console.error("Booking fetch error:", err);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+//     fetchBookings();
+//   }, [API]);
 
-export default function Bookings() {
-  const [bookings, setBookings] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+//   const filteredBookings =
+//     filter === "All" ? bookings : bookings.filter((b) => b.status === filter);
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        const mentorId = user._id || user.id;
+//   if (loading) {
+//     return <div className="booking-page"><p className="empty-msg">Loading bookings...</p></div>;
+//   }
 
-        if (!token || !mentorId) {
-          setError("Please login again to view your bookings.");
-          return;
-        }
+//   return (
+//     <div className="booking-page">
+//       <h1 className="booking-title">My Bookings</h1>
+//       <p className="booking-subtitle">Track, manage and join your sessions</p>
 
-        const res = await axios.get(
-          `${API}/bookings/mentor/${mentorId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+//       <div className="stats-row">
+//         <div className="stat-box">
+//           <h3>{bookings.length}</h3>
+//           <p>Total Bookings</p>
+//         </div>
+//         <div className="stat-box">
+//           <h3>{bookings.filter((b) => b.status === "Confirmed").length}</h3>
+//           <p>Upcoming</p>
+//         </div>
+//         <div className="stat-box">
+//           <h3>{bookings.filter((b) => b.status === "Completed").length}</h3>
+//           <p>Completed</p>
+//         </div>
+//       </div>
 
-        setBookings(
-          Array.isArray(res.data.bookings) ? res.data.bookings : []
-        );
-      } catch (err) {
-        setError(
-          err.response?.data?.message || "Unable to load bookings."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, 0);
+//       <div className="filter-row">
+//         {["All", "Pending", "Confirmed", "Completed", "Cancelled"].map((f) => (
+//           <button
+//             key={f}
+//             className={`filter-btn ${filter === f ? "active" : ""}`}
+//             onClick={() => setFilter(f)}
+//           >
+//             {f}
+//           </button>
+//         ))}
+//       </div>
 
-    return () => clearTimeout(timer);
-  }, []);
+//       {filteredBookings.length === 0 ? (
+//         <div className="empty-msg">No bookings found for "{filter}"</div>
+//       ) : (
+//         <div className="booking-list">
+//           {filteredBookings.map((b) => (
+//             <div key={b._id} className="booking-card">
+//               <div className="card-header">
+//                 <div>
+//                   <h3>{b.mentorName || b.mentor?.name || "Mentor Session"}</h3>
+//                   <span className="service">{b.service || b.sessionType || "1:1 Session"}</span>
+//                 </div>
+//                 <span className={`status-badge ${b.status?.toLowerCase()}`}>
+//                   {b.status}
+//                 </span>
+//               </div>
 
-  const filteredBookings = bookings.filter((booking) => {
-    const query = search.toLowerCase();
+//               <div className="card-details">
+//                 <span>Date: {b.date ? new Date(b.date).toLocaleDateString() : "-"}</span>
+//                 <span>Time: {b.time || "-"}</span>
+//                 <span>Payment: {b.paymentStatus || "Paid"}</span>
+//               </div>
 
-    const matchesSearch = [
-      booking._id,
-      booking.student?.name,
-      booking.student?.email,
-    ].some((value) =>
-      String(value || "").toLowerCase().includes(query)
-    );
+//               <div className="card-actions">
+//                 {b.status === "Confirmed" && (
+//                   <button className="btn-join">Join Session</button>
+//                 )}
+//                 {b.status === "Pending" && (
+//                   <button className="btn-pay">Complete Payment</button>
+//                 )}
+//               </div>
+//             </div>
+//           ))}
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
 
-    const matchesStatus =
-      statusFilter === "ALL" ||
-      booking.status?.toUpperCase() === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const pending = bookings.filter(
-    (b) => b.status?.toUpperCase() === "PENDING"
-  ).length;
-
-  const confirmed = bookings.filter(
-    (b) => b.status?.toUpperCase() === "CONFIRMED"
-  ).length;
-
-  const completed = bookings.filter(
-    (b) => b.status?.toUpperCase() === "COMPLETED"
-  ).length;
-
-  if (loading) {
-    return (
-      <div className="bookings-page">
-        <div className="bookings-state">Loading bookings...</div>
-      </div>
-    );
-  }
-
-  return (
-    <main className="bookings-page">
-      <header className="bookings-header">
-        <div>
-          <span className="bookings-eyebrow">THRONE8 / MENTOR</span>
-          <h1>My Bookings</h1>
-          <p>Manage your mentoring sessions in one place.</p>
-        </div>
-
-        <div className="bookings-total">
-          <span className="bookings-total-icon">▣</span>
-          <div>
-            <small>Total Bookings</small>
-            <h2>{bookings.length}</h2>
-          </div>
-        </div>
-      </header>
-
-      {error && (
-        <div className="bookings-error">
-          {error}
-        </div>
-      )}
-
-      <section className="booking-stats">
-        <article className="booking-stat-card">
-          <span className="stat-symbol">▣</span>
-          <div>
-            <p>Total Bookings</p>
-            <h2>{bookings.length}</h2>
-          </div>
-        </article>
-
-        <article className="booking-stat-card">
-          <span className="stat-symbol pending-icon">◷</span>
-          <div>
-            <p>Pending</p>
-            <h2>{pending}</h2>
-          </div>
-        </article>
-
-        <article className="booking-stat-card">
-          <span className="stat-symbol confirmed-icon">✓</span>
-          <div>
-            <p>Confirmed</p>
-            <h2>{confirmed}</h2>
-          </div>
-        </article>
-
-        <article className="booking-stat-card">
-          <span className="stat-symbol completed-icon">★</span>
-          <div>
-            <p>Completed</p>
-            <h2>{completed}</h2>
-          </div>
-        </article>
-      </section>
-
-      <section className="bookings-panel">
-        <div className="bookings-panel-heading">
-          <div>
-            <h2>Booking Records</h2>
-            <p>Review your latest student bookings.</p>
-          </div>
-          <span className="record-count">
-            {filteredBookings.length} records
-          </span>
-        </div>
-
-        <div className="bookings-toolbar">
-          <input
-            className="bookings-search"
-            type="search"
-            placeholder="Search by booking ID or student..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            className="bookings-filter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="ALL">All statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-        </div>
-
-        <div className="bookings-table-wrap">
-          <table className="bookings-table">
-            <thead>
-              <tr>
-                <th>BOOKING ID</th>
-                <th>STUDENT</th>
-                <th>BOOKING STATUS</th>
-                <th>PAYMENT STATUS</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredBookings.map((booking) => {
-                const status =
-                  booking.status?.toUpperCase() || "UNKNOWN";
-                const payment =
-                  booking.paymentStatus?.toUpperCase() || "UNKNOWN";
-
-                return (
-                  <tr key={booking._id}>
-                    <td>
-                      <span className="booking-id">
-                        #{booking._id}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div className="booking-person">
-                        <div className="booking-avatar">
-                          {(booking.student?.name || "S")
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
-                        <div>
-                          <strong>
-                            {booking.student?.name || "Student"}
-                          </strong>
-                          <small>
-                            {booking.student?.email || "Student account"}
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span
-                        className={`booking-badge status-${status.toLowerCase()}`}
-                      >
-                        <span className="badge-dot"></span>
-                        {status}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span
-                        className={`booking-badge payment-${payment.toLowerCase()}`}
-                      >
-                        <span className="badge-dot"></span>
-                        {payment}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {filteredBookings.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="bookings-empty">
-                    No matching bookings found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <footer className="bookings-table-footer">
-          Showing {filteredBookings.length} of {bookings.length} bookings
-        </footer>
-      </section>
-    </main>
-  );
-}
+// export default Bookings;

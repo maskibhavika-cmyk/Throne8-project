@@ -35,7 +35,7 @@ function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!user || !localStorage.getItem("token")) {
+    if (!user?.role || !localStorage.getItem("token")) {
   return;
 }
     let active = true;
@@ -184,7 +184,7 @@ function Home() {
       </section>
 
       <footer className="footer">
-        © 2026 THRONE8. All rights reserved.
+       THRONE8. All rights reserved.
       </footer>
     </div>
   );

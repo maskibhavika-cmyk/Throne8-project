@@ -42,8 +42,9 @@ router.get(
           message: "Access denied",
         });
       }
-
       const bookings = await Booking.find({ mentor: mentorId })
+        .populate('student', 'name email phone')
+        .populate('mentor', 'name email')
         .sort({ createdAt: -1 });
 
       return res.json({ success: true, bookings });
