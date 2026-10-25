@@ -33,4 +33,5 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/earnings", require("./routes/earnings"));
 module.exports = app;
