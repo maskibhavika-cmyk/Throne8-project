@@ -1,256 +1,96 @@
-
 import { useEffect, useState } from "react";
-import axios from "axios";
-
-const API = "http://localhost:5000/api/v1";
-
-const formatRupees = (paise = 0) =>
-  (Number(paise) / 100).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const formatDate = (date) => {
-  if (!date) return "—";
-  const parsed = new Date(date);
-  return Number.isNaN(parsed.getTime())
-    ? "—"
-    : parsed.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-};
-
-const statusStyle = (status) => {
-  const styles = {
-    PAID: { color: "#86efac", background: "#143a2b" },
-    COMPLETED: { color: "#86efac", background: "#143a2b" },
-    PROCESSING: { color: "#93c5fd", background: "#172e50" },
-    PENDING: { color: "#fcd34d", background: "#453519" },
-    FAILED: { color: "#fca5a5", background: "#482127" },
-  };
-
-  return styles[status] || { color: "#cbd5e1", background: "#263247" };
-};
-
-function StatCard({ label, value, icon, note }) {
-  return (
-    <div className="payout-stat-card">
-      <div className="payout-stat-top">
-        <span>{label}</span>
-        <span className="payout-stat-icon">{icon}</span>
-      </div>
-      <div className="payout-stat-value">{value}</div>
-      <div className="payout-stat-note">{note}</div>
-    </div>
-  );
-}
 
 export default function Payouts() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [retry, setRetry] = useState(0);
-
-  const user = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  })();
-
-  const mentorId = user?._id || user?.id;
+  const [summary, setSummary] = useState({ availableBalance: 0, totalPaidOut: 0, pendingCount: 0, pendingAmount: 0 });
+  const [history, setHistory] = useState([]);
+  const mentorId = localStorage.getItem("mentorId");
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadPayouts = async () => {
-      setLoading(true);
-      setError("");
-
-      const token = localStorage.getItem("token");
-
-      if (!token || !mentorId) {
-        setError("Session nahi mili. Please dobara login karein.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await axios.get(
-        `${API}/payouts/${mentorId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (!cancelled) setData(res.data);
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err.response?.data?.message || "Payouts load nahi ho paaye."
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    const loadData = async () => {
+      if (!mentorId) return;
+      const sRes = await fetch(`http://localhost:5000/api/payouts/summary?mentorId=${mentorId}`);
+      setSummary(await sRes.json());
+      const hRes = await fetch(`http://localhost:5000/api/payouts?mentorId=${mentorId}`);
+      const hData = await hRes.json();
+      setHistory(Array.isArray(hData) ? hData : []);
     };
+    loadData();
+  }, [mentorId]);
 
-    loadPayouts();
+  const load = async () => {
+    const sRes = await fetch(`http://localhost:5000/api/payouts/summary?mentorId=${mentorId}`);
+    setSummary(await sRes.json());
+    const hRes = await fetch(`http://localhost:5000/api/payouts?mentorId=${mentorId}`);
+    const hData = await hRes.json();
+    setHistory(Array.isArray(hData) ? hData : []);
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [mentorId, retry]);
-
-  const payouts = Array.isArray(data?.payouts) ? data.payouts : [];
-  const availablePaise = Number(data?.availablePaise) || 0;
-
-  const paidPaise = payouts
-    .filter((p) => ["PAID", "COMPLETED"].includes(p.status))
-    .reduce((sum, p) => sum + (Number(p.amountPaise) || 0), 0);
-
-  const pendingCount = payouts.filter((p) =>
-    ["PENDING", "PROCESSING"].includes(p.status)
-  ).length;
+  const requestPayout = async () => {
+    await fetch(`http://localhost:5000/api/payouts/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mentorId })
+    });
+    load();
+  };
 
   return (
-    <main className="payout-page">
-      <div className="payout-container">
-        <header className="payout-heading">
-          <div>
-            <div className="payout-eyebrow">
-              <span className="payout-live-dot" />
-              MENTOR FINANCE
-            </div>
-            <h1>My Payouts</h1>
-            <p>Track your earnings and payout activity in one place.</p>
-          </div>
-
-          <button
-            className="payout-refresh"
-            onClick={() => setRetry((value) => value + 1)}
-            disabled={loading}
-          >
-            ↻ {loading ? "Loading..." : "Refresh"}
-          </button>
-        </header>
-
-        {error ? (
-          <section className="payout-message payout-error">
-            <h2>Unable to load payouts</h2>
-            <p>{error}</p>
-            <button onClick={() => setRetry((value) => value + 1)}>
-              Try again
-            </button>
-          </section>
-        ) : loading && !data ? (
-          <div className="payout-stats">
-            {[1, 2, 3].map((item) => (
-              <div className="payout-stat-card payout-skeleton" key={item}>
-                <div />
-                <div />
-                <div />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <section className="payout-stats">
-              <StatCard
-                label="Available balance"
-                value={`₹${formatRupees(availablePaise)}`}
-                icon="₹"
-                note="Currently available"
-              />
-              <StatCard
-                label="Total paid out"
-                value={`₹${formatRupees(paidPaise)}`}
-                icon="↗"
-                note="Based on listed payout records"
-              />
-              <StatCard
-                label="Payout activity"
-                value={String(pendingCount)}
-                icon="◷"
-                note="Pending or processing"
-              />
-            </section>
-
-            <section className="payout-panel">
-              <div className="payout-panel-heading">
-                <div>
-                  <h2>Payout history</h2>
-                  <p>Your recorded payout transactions</p>
-                </div>
-                <span className="payout-count">
-                  {payouts.length} records
-                </span>
-              </div>
-
-              {payouts.length > 0 ? (
-                <div className="payout-table-wrap">
-                  <table className="payout-table">
-                    <thead>
-                      <tr>
-                        <th>Transaction</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payouts.map((payout) => (
-                        <tr key={payout._id}>
-                          <td>
-                            <div className="payout-transaction">
-                              <span className="payout-transaction-icon">
-                                ₹
-                              </span>
-                              <div>
-                                <strong>Payout transfer</strong>
-                                <small>
-                                  ID: {payout._id || "Not available"}
-                                </small>
-                              </div>
-                            </div>
-                          </td>
-                          <td>{formatDate(payout.createdAt)}</td>
-                          <td className="payout-amount">
-                            ₹{formatRupees(payout.amountPaise)}
-                          </td>
-                          <td>
-                            <span
-                              className="payout-status"
-                              style={statusStyle(payout.status)}
-                            >
-                              {payout.status || "UNKNOWN"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="payout-empty">
-                  <div className="payout-empty-icon">₹</div>
-                  <h3>No payouts yet</h3>
-                  <p>
-                    Your payout transactions will appear here once they are
-                    recorded.
-                  </p>
-                </div>
-              )}
-
-              <footer className="payout-panel-footer">
-                <span>THRONE8 · Mentor dashboard</span>
-                <span>Amounts displayed in INR</span>
-              </footer>
-            </section>
-          </>
-        )}
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">MENTOR FINANCE</h1>
+        <button onClick={load} className="border px-4 py-2 rounded">↻ Refresh</button>
       </div>
-    </main>
+      <p className="text-gray-500 mb-6">Track your earnings and payout activity in one place.</p>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="border rounded-xl p-5">
+          <p className="text-sm text-gray-500">Available balance</p>
+          <p className="text-3xl font-bold">₹{summary.availableBalance.toFixed(2)}</p>
+          <p className="text-xs text-gray-400">Currently available</p>
+        </div>
+        <div className="border rounded-xl p-5">
+          <p className="text-sm text-gray-500">Total paid out ↗</p>
+          <p className="text-3xl font-bold">₹{summary.totalPaidOut.toFixed(2)}</p>
+          <p className="text-xs text-gray-400">Based on listed payout records</p>
+        </div>
+        <div className="border rounded-xl p-5">
+          <p className="text-sm text-gray-500">Payout activity ◷</p>
+          <p className="text-3xl font-bold">{summary.pendingCount}</p>
+          <p className="text-xs text-gray-400">Pending or processing (₹{summary.pendingAmount})</p>
+        </div>
+      </div>
+
+      <button onClick={requestPayout} className="bg-black text-white px-6 py-3 rounded-lg mb-6">
+        Request Payout
+      </button>
+
+      <h2 className="font-semibold mb-2">Payout history</h2>
+      <p className="text-sm text-gray-500 mb-4">Your recorded payout transactions</p>
+
+      {history.length === 0 ? (
+        <div className="border rounded-xl p-10 text-center text-gray-500">
+          <p className="text-4xl mb-2">₹</p>
+          <p>No payouts yet</p>
+          <p className="text-sm">Your payout transactions will appear here once they are recorded.</p>
+        </div>
+      ) : (
+        <table className="w-full border rounded-xl">
+          <thead><tr className="text-left text-gray-500 text-sm">
+            <th className="p-3">Date</th><th className="p-3">Amount</th><th className="p-3">Status</th><th className="p-3">UTR</th>
+          </tr></thead>
+          <tbody>
+            {history.map(p => (
+              <tr key={p._id} className="border-t">
+                <td className="p-3">{new Date(p.createdAt).toLocaleDateString()}</td>
+                <td className="p-3 font-bold">₹{(p.amountPaise/100).toFixed(2)}</td>
+                <td className="p-3"><span className="border px-2 py-1 rounded-full text-xs">{p.status}</span></td>
+                <td className="p-3">{p.providerPayoutId || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="text-center text-xs text-gray-400 mt-6">THRONE8 · Mentor dashboard<br/>Amounts displayed in INR</p>
+    </div>
   );
 }

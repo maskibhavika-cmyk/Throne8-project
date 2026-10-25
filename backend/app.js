@@ -9,7 +9,7 @@ const payoutRoutes = require("./routes/payoutRoutes");
 const authRoutes = require("./routes/authRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-
+app.use("/api/earnings", require("./routes/earnings"));
 const { receiveWebhook } = require("./controllers/webhookController");
 app.use(cors());
 
@@ -33,5 +33,5 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/earnings", require("./routes/earnings"));
+// app.use("/api/earnings", require("./routes/earnings"));
 module.exports = app;
