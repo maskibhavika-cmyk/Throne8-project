@@ -36,9 +36,9 @@ function Login() {
 console.log("User role:", response.data.user?.role);
       const token = response.data.token;
 
-      localStorage.setItem("token", token);
+            localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-
+      localStorage.setItem("mentorId", user._id || user.id);
       if (user.role === "mentor") {
         navigate("/mentor-dashboard");
       } else if (user.role === "admin") {

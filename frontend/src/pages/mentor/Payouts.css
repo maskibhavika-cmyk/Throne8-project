@@ -1,0 +1,148 @@
+.payout-page {
+  background: #0B0B0F;
+  color: #fff;
+  min-height: 100vh;
+  padding: 32px;
+  font-family: Inter, sans-serif;
+}
+.payout-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.payout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.payout-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.refresh-btn {
+  background: #1C1C21;
+  color: #fff;
+  border: 1px solid #2A2A30;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.payout-sub {
+  color: #9CA3AF;
+  margin-bottom: 32px;
+}
+.payout-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.payout-card {
+  background: #15151A;
+  border: 1px solid #232329;
+  border-radius: 20px;
+  padding: 24px;
+}
+.payout-card label {
+  color: #9CA3AF;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 8px;
+}
+.payout-card strong {
+  font-size: 32px;
+  font-weight: 800;
+}
+.payout-card small {
+  color: #6B7280;
+  font-size: 12px;
+  display: block;
+  margin-top: 4px;
+}
+.request-btn {
+  background: #fff;
+  color: #000;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin-bottom: 40px;
+}
+.payout-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.payout-desc {
+  color: #9CA3AF;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.empty-state {
+  background: #15151A;
+  border: 1px solid #232329;
+  border-radius: 20px;
+  padding: 60px 20px;
+  text-align: center;
+}
+.empty-state .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.empty-state p {
+  font-weight: 700;
+  font-size: 18px;
+}
+.empty-state small {
+  color: #9CA3AF;
+  font-size: 14px;
+}
+.payout-table {
+  background: #15151A;
+  border: 1px solid #232329;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.payout-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.payout-table th {
+  color: #9CA3AF;
+  font-size: 13px;
+  padding: 16px;
+  border-bottom: 1px solid #232329;
+}
+.payout-table td {
+  padding: 16px;
+  border-bottom: 1px solid #1F1F23;
+}
+.status-paid {
+  background: #052e16;
+  color: #4ade80;
+  border: 1px solid #166534;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.status-pending {
+  background: #2a1f00;
+  color: #facc15;
+  border: 1px solid #a16207;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.payout-footer {
+  text-align: center;
+  color: #4B5563;
+  font-size: 12px;
+  margin-top: 40px;
+}

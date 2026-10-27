@@ -1,122 +1,289 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import "./Earnings.css";
 
-function inr(n) {
-  return Number(n || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" });
-}
+const API = "http://localhost:5000/api/v1";
 
-export default function Earnings() {
-  const [data, setData] = useState(null);
+const formatMoney = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+
+function Earnings() {
+  const navigate = useNavigate();
+
+  const [mentorId] = useState(() => {
+    try {
+      const savedId = localStorage.getItem("mentorId");
+      if (savedId) return savedId;
+
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      return user?._id || user?.id || null;
+    } catch {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-  const mentorId = user?._id || user?.id;
+  const [summary, setSummary] = useState({
+    total: 0,
+    paid: 0,
+    pending: 0,
+    hold: 0,
+    eligible: 0,
+    reversed: 0,
+    processing: 0,
+  });
+  const [ledger, setLedger] = useState([]);
+  const [payouts, setPayouts] = useState([]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`http://localhost:5000/api/earnings/mentor/${mentorId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setData(res.data);
-      } catch (e) {
-        setError(e.response?.data?.message || "Load nahi hui");
-      } finally {
+  const controller = new AbortController();
+
+  async function loadEarnings() {
+    if (!mentorId) {
+      setError("Mentor ID nahi mila. Dobara login karo.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API}/earnings/mentor/${mentorId}`,
+        { signal: controller.signal }
+      );
+
+      if (!response.ok) {
+        throw new Error("Earnings load nahi hui. Backend check karo.");
+      }
+
+      const data = await response.json();
+
+      setSummary({
+        total: data.summary?.total || 0,
+        paid: data.summary?.paid || 0,
+        pending: data.summary?.pending || 0,
+        hold: data.summary?.hold || 0,
+        eligible: data.summary?.eligible || 0,
+        reversed: data.summary?.reversed || 0,
+        processing: data.summary?.processing || 0,
+      });
+
+      setLedger(Array.isArray(data.ledger) ? data.ledger : []);
+      setPayouts(Array.isArray(data.payouts) ? data.payouts : []);
+      setError("");
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setError(err.message || "Something went wrong.");
+      }
+    } finally {
+      if (!controller.signal.aborted) {
         setLoading(false);
       }
     }
-    load();
-  }, [mentorId]);
+  }
 
-  if (loading) return <div className="earnings-page">Loading...</div>;
-  if (error) return <div className="earnings-page"><p style={{ color: "red" }}>{error}</p></div>;
+  loadEarnings();
 
-  const summary = data?.summary || { total: 0, paid: 0, pending: 0, hold: 0, eligible: 0, reversed: 0, processing: 0 };
-  const ledger = data?.ledger || [];
-  const payouts = data?.payouts || [];
+  return () => controller.abort();
+}, [mentorId]);
+
+  if (loading) {
+    return (
+      <main className="earnings-page">
+        <div className="earnings-message">Loading earnings...</div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="earnings-page">
+        <div className="earnings-message earnings-error">
+          <h2>Unable to load earnings</h2>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Try again</button>
+        </div>
+      </main>
+    );
+  }
 
   const cards = [
-    { title: "Total earned", amount: summary.total },
-    { title: "Paid to bank", amount: summary.paid },
-    { title: "Awaiting session", amount: summary.pending },
-    { title: "In 15-day hold", amount: summary.hold },
-    { title: "Eligible", amount: summary.eligible },
-    { title: "Processing", amount: summary.processing },
-    { title: "On hold", amount: summary.reversed },
+    { label: "Total Earnings", value: summary.total, color: "purple" },
+    { label: "Paid to Bank", value: summary.paid, color: "green" },
+    { label: "Eligible for Payout", value: summary.eligible, color: "blue" },
+    { label: "15-Day Hold", value: summary.hold, color: "orange" },
+    { label: "Pending Sessions", value: summary.pending, color: "gray" },
+    { label: "Processing", value: summary.processing, color: "cyan" },
   ];
 
   return (
     <main className="earnings-page">
-      <div className="earnings-header">
-        <div>
-          <h1 className="earnings-heading">My earnings</h1>
-          <p className="earnings-sub">{user?.name} • Mentor • Commission 20% per session</p>
-          <p className="earnings-note">Note: Payments in 15-day hold are not counted in your eligible earnings until the session is marked complete.</p>
-        </div>
-        <button className="earnings-btn" onClick={() => window.location.reload()}>Refresh</button>
-      </div>
-
-      <section className="earnings-grid">
-        {cards.map(c => (
-          <div key={c.title} className="earnings-card">
-            <p className="earnings-card-title">{c.title}</p>
-            <h2 className="earnings-amount">{inr(c.amount)}</h2>
+      <div className="earnings-container">
+        <header className="earnings-header">
+          <div>
+            <span className="earnings-label">MENTOR DASHBOARD</span>
+            <h1>My Earnings</h1>
+            <p>Keep track of your income and payouts.</p>
           </div>
-        ))}
-      </section>
 
-      <section className="earnings-panel">
-        <h2>Earnings ledger</h2>
-        {ledger.length === 0 ? <p className="earnings-empty">No sessions in ledger yet.</p> : (
-          <table className="earnings-table">
-            <thead><tr>
-              <th className="earnings-th">Booking ID</th>
-              <th className="earnings-th">Student</th>
-              <th className="earnings-th">Session fee</th>
-              <th className="earnings-th">Commission</th>
-              <th className="earnings-th">Your earning</th>
-              <th className="earnings-th">Status</th>
-              <th className="earnings-th">Payout date</th>
-            </tr></thead>
-            <tbody>
-              {ledger.map((r, i) => (
-                <tr key={i}>
-                  <td className="earnings-td">{r.bookingId}</td>
-                  <td className="earnings-td">{r.student}</td>
-                  <td className="earnings-td">{inr(r.sessionFee)}</td>
-                  <td className="earnings-td">{inr(r.commission)}</td>
-                  <td className="earnings-td">{inr(r.yourEarning)}</td>
-                  <td className="earnings-td">{r.status}</td>
-                  <td className="earnings-td">{r.payoutDate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+          <button
+            className="earnings-button"
+            disabled={Number(summary.eligible) <= 0}
+            onClick={() => navigate("/mentor-payout")}
+          >
+            Request Payout
+          </button>
+        </header>
 
-      <p className="earnings-note">Payout rule: Payments enter a 15-day hold after the session completes. After the hold ends, they move to Eligible and are paid out in the next payout run.</p>
+        <section className="earnings-overview">
+          <div>
+            <span className="overview-label">Total Recorded Earnings</span>
+            <h2>{formatMoney(summary.total)}</h2>
+            <p>Your earnings at a glance.</p>
+          </div>
 
-      <section className="earnings-panel">
-        <h2>Payout history</h2>
-        {payouts.length === 0 ? <p className="earnings-empty">No payouts yet. Your eligible earnings will be transferred to your bank after the hold period.</p> : (
-          <table className="earnings-table">
-            <thead><tr><th className="earnings-th">Transfer ID</th><th className="earnings-th">Booking</th><th className="earnings-th">Amount</th><th className="earnings-th">Status</th></tr></thead>
-            <tbody>{payouts.map((p, i) => (
-              <tr key={i}><td className="earnings-td">{p.transferId || p._id}</td><td className="earnings-td">{p.booking || "-"}</td><td className="earnings-td">{inr(p.amount)}</td><td className="earnings-td">{p.status || "Paid to bank"}</td></tr>
-            ))}</tbody>
-          </table>
-        )}
-      </section>
+          <div className="overview-details">
+            <div>
+              <span>Already paid</span>
+              <strong>{formatMoney(summary.paid)}</strong>
+            </div>
+            <div>
+              <span>Available for payout</span>
+              <strong>{formatMoney(summary.eligible)}</strong>
+            </div>
+          </div>
+        </section>
 
-      <section className="earnings-panel">
-        <h2>Statement October 2026</h2>
-        <div className="earnings-row"><span>Total earned in October</span><strong>{inr(summary.total)}</strong></div>
-        <div className="earnings-row"><span>Paid to bank in October</span><strong>{inr(summary.paid)}</strong></div>
-        <button className="earnings-btn" style={{ marginTop: "16px" }}>Download statement</button>
-      </section>
+        <section className="earnings-section">
+          <div className="section-heading">
+            <div>
+              <h2>Financial Summary</h2>
+              <p>A quick look at your earnings status.</p>
+            </div>
+          </div>
+
+          <div className="earnings-grid">
+            {cards.map((card) => (
+              <article className="earnings-card" key={card.label}>
+                <div className="card-heading">
+                  <span>{card.label}</span>
+                  <span className={`card-icon ${card.color}`}>₹</span>
+                </div>
+                <strong>{formatMoney(card.value)}</strong>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="earnings-section">
+          <div className="section-heading">
+            <div>
+              <h2>Earnings History</h2>
+              <p>Details of your session earnings.</p>
+            </div>
+            <span className="record-count">{ledger.length} records</span>
+          </div>
+
+          <div className="earnings-panel">
+            {ledger.length === 0 ? (
+              <div className="empty-state">
+                <span>₹</span>
+                <h3>No earnings yet</h3>
+                <p>Your session earnings will appear here.</p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="earnings-table">
+                  <thead>
+                    <tr>
+                      <th>Student / Booking</th>
+                      <th>Session Fee</th>
+                      <th>Commission</th>
+                      <th>Your Earnings</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledger.map((item, index) => (
+                      <tr key={item._id || item.bookingId || index}>
+                        <td>
+                          <strong>{item.student || "Student"}</strong>
+                          <small>Booking: {item.bookingId || "—"}</small>
+                        </td>
+                        <td>{formatMoney(item.sessionFee)}</td>
+                        <td>{formatMoney(item.commission)}</td>
+                        <td className="amount">
+                          {formatMoney(item.yourEarning)}
+                        </td>
+                        <td>
+                          <span className="status-badge">
+                            {item.status || "Pending"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="earnings-section">
+          <div className="section-heading">
+            <div>
+              <h2>Payout History</h2>
+              <p>Your payout and transfer records.</p>
+            </div>
+          </div>
+
+          <div className="earnings-panel">
+            {payouts.length === 0 ? (
+              <div className="empty-state">
+                <span>↗</span>
+                <h3>No payouts yet</h3>
+                <p>Your payout records will appear here.</p>
+              </div>
+            ) : (
+              <div className="payout-list">
+                {payouts.map((payout, index) => (
+                  <div
+                    className="payout-row"
+                    key={payout._id || payout.transferId || index}
+                  >
+                    <div className="payout-symbol">₹</div>
+                    <div className="payout-info">
+                      <strong>
+                        {payout.bookingId ||
+                          payout.transferId ||
+                          `Payout ${index + 1}`}
+                      </strong>
+                      <span>{payout.status || payout.state || "Pending"}</span>
+                    </div>
+                    <strong>
+                      {formatMoney(
+                        payout.amountPaise != null
+                          ? payout.amountPaise / 100
+                          : payout.amount || 0
+                      )}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <footer className="earnings-footer">
+          THRONE8 <span>·</span> Mentor Earnings
+        </footer>
+      </div>
     </main>
   );
 }
+
+export default Earnings;
