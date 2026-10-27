@@ -1,65 +1,59 @@
+
 const express = require("express");
 const router = express.Router();
-const Earning = require("../models/Earning");
-const Payout = require("../models/Payout");
 
-// GET /api/payouts/summary?mentorId=xxx
-router.get("/summary", async (req, res) => {
-  const mentorId = req.user?.id || req.query.mentorId;
+const {
+  getMentorPayouts,
+  createPayoutRequest,
+} = require("../controllers/payoutController");
 
-  const earnings = await Earning.find({ mentor: mentorId });
-  const allPayouts = await Payout.find({ mentor: mentorId });
+const {
+  authMiddleware,
+  authorizeRoles,
+} = require("../middleware/authMiddleware");
 
-  const totalEarned = earnings.reduce((s, e) => s + (e.amountPaise || 0), 0);
-  const totalPaidOut = allPayouts
-    .filter(p => p.status === "PAID")
-    .reduce((s, p) => s + p.amountPaise, 0);
+router.get(
+  "/summary",
+  authMiddleware,
+  authorizeRoles("mentor", "admin"),
+  async (req, res) => {
+    try {
+      const mentorId =
+        req.user?.role === "admin"
+          ? req.query.mentorId
+          : req.user?._id || req.user?.id || req.user?.userId;
 
-  const pendingPayouts = allPayouts.filter(p =>
-    ["PENDING", "APPROVED", "PROCESSING", "ON_HOLD"].includes(p.status)
-  );
-  const pendingAmount = pendingPayouts.reduce((s, p) => s + p.amountPaise, 0);
+      if (!mentorId) {
+        return res.status(400).json({
+          success: false,
+          message: "Mentor ID is required",
+        });
+      }
 
-  const available = totalEarned - totalPaidOut - pendingAmount;
-
-  res.json({
-    availableBalance: available / 100,
-    totalPaidOut: totalPaidOut / 100,
-    pendingCount: pendingPayouts.length,
-    pendingAmount: pendingAmount / 100
-  });
-});
-
-// GET /api/payouts?mentorId=xxx
-router.get("/", async (req, res) => {
-  const mentorId = req.user?.id || req.query.mentorId;
-  const payouts = await Payout.find({ mentor: mentorId }).sort({ createdAt: -1 });
-  res.json(payouts);
-});
-
-// POST /api/payouts/request
-router.post("/request", async (req, res) => {
-  const mentorId = req.user?.id || req.body.mentorId;
-
-  const eligibleEarnings = await Earning.find({ mentor: mentorId, status: "ELIGIBLE" });
-  const totalEligible = eligibleEarnings.reduce((s, e) => s + (e.amountPaise || 0), 0);
-
-  if (totalEligible < 1) {
-    return res.status(400).json({ message: "Koi eligible balance nahi hai" });
+      req.params.mentorId = String(mentorId);
+      return getMentorPayouts(req, res);
+    } catch (error) {
+      console.error("Payout summary error:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to fetch payout summary",
+      });
+    }
   }
+);
 
-  const payout = await Payout.create({
-    mentor: mentorId,
-    amountPaise: totalEligible,
-    status: "PENDING"
-  });
+router.get(
+  "/:mentorId",
+  authMiddleware,
+  authorizeRoles("mentor", "admin"),
+  getMentorPayouts
+);
 
-  await Earning.updateMany(
-    { mentor: mentorId, status: "ELIGIBLE" },
-    { $set: { status: "PAID" } }
-  );
-
-  res.json(payout);
-});
+router.post(
+  "/request",
+  authMiddleware,
+  authorizeRoles("mentor"),
+  createPayoutRequest
+);
 
 module.exports = router;

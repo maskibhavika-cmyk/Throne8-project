@@ -51,10 +51,22 @@ function Earnings() {
     }
 
     try {
-      const response = await fetch(
-        `${API}/earnings/mentor/${mentorId}`,
-        { signal: controller.signal }
-      );
+      
+const token = localStorage.getItem("token");
+
+if (!token) {
+  throw new Error("Login token nahi mila. Logout karke dobara login karo.");
+}
+
+const response = await fetch(
+  `${API}/earnings/mentor/${mentorId}`,
+  {
+    signal: controller.signal,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
       if (!response.ok) {
         throw new Error("Earnings load nahi hui. Backend check karo.");
