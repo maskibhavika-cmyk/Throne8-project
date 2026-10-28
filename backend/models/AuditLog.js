@@ -1,7 +1,7 @@
 
 const mongoose = require("mongoose");
 
-const auditLogSchema = new mongoose.Schema(
+const auditLogSchema = new  mongoose.Schema(
   {
     actor: {
       type: mongoose.Schema.Types.ObjectId,

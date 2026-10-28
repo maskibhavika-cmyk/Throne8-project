@@ -1,10 +1,10 @@
 
 const mongoose = require("mongoose");
 
-const bookingSchema = new mongoose.Schema(
+const bookingSchema  =  new  mongoose.Schema(
   {
     student: {
-      type: mongoose.Schema.Types.ObjectId,
+      type:  mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
