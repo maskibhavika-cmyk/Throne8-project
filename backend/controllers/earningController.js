@@ -60,11 +60,36 @@ const getMentorEarnings = async (req, res) => {
         summary.total += amount;
       }
 
-      if (earning.status === "PAID") summary.paid += amount;
-      else if (earning.status === "PENDING") summary.pending += amount;
-      else if (earning.status === "ON_HOLD") summary.hold += amount;
-      else if (earning.status === "ELIGIBLE") summary.eligible += amount;
-      else if (earning.status === "REVERSED") summary.reversed += amount;
+if (earning.status === "PAID") {
+  summary.paid += amount;
+} else if (earning.status === "ELIGIBLE") {
+  summary.eligible += amount;
+} else if (earning.status === "ON_HOLD") {
+  summary.hold += amount;
+} else if (earning.status === "REVERSED") {
+  summary.reversed += amount;
+} else if (earning.status === "PENDING") {
+  
+  
+if (
+  booking?.status === "COMPLETED" &&
+  booking?.paymentStatus === "PAID"
+) {
+  const eligibleDate = earning.eligibleAt || booking.payoutEligibleAt;
+
+  if (eligibleDate && new Date(eligibleDate) > new Date()) {
+    summary.hold += amount;
+  } else if (eligibleDate) {
+    summary.eligible += amount;
+  } else {
+    summary.hold += amount;
+  }
+} else {
+  summary.pending += amount;
+}
+
+}
+
 
       let status = earning.status || "PENDING";
 

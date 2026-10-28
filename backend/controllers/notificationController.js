@@ -2,6 +2,30 @@
 const mongoose = require("mongoose");
 const Notification = require("../models/Notification");
 
+const createNotification = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id || req.user?.userId;
+
+    const notification = await Notification.create({
+      recipient: userId,
+      type: "BOOKING_COMPLETED",
+      title: "Session Completed",
+      message: "Your mentoring session has been completed successfully.",
+      link: "/my-bookings",
+    });
+
+    return res.status(201).json({
+      success: true,
+      notification,
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create notification",
+    });
+  }
+};
 const getMyNotifications = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id || req.user?.userId;
@@ -87,5 +111,5 @@ const markNotificationRead = async (req, res) => {
 
 module.exports = {
   getMyNotifications,
-  markNotificationRead,
+  markNotificationRead, createNotification
 };

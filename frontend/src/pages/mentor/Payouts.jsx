@@ -1,133 +1,229 @@
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useState } from "react";
 import "./Payouts.css";
 
+const API = "http://localhost:5000/api/v1";
+
+const money = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(Number(value || 0));
+
 export default function Payouts() {
-  const [summary, setSummary] = useState({ availableBalance: 0, totalPaidOut: 0, pendingCount: 0, pendingAmount: 0 });
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const mentorId = localStorage.getItem("mentorId");
+  const [summary, setSummary] = useState({
+    availableBalance: 0,
+    totalPaid: 0,
+    processing: 0,
+    hold: 0,
+  });
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const sRes = await fetch(`http://localhost:5000/api/payouts/summary?mentorId=${mentorId}`);
-      setSummary(await sRes.json());
-      const hRes = await fetch(`http://localhost:5000/api/payouts?mentorId=${mentorId}`);
-      const hData = await hRes.json();
-      setHistory(Array.isArray(hData) ? hData : []);
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  };
+  const load = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const mentorId =
+      localStorage.getItem("mentorId") || user._id || user.id;
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchInitial = async () => {
-      try {
-        const sRes = await fetch(`http://localhost:5000/api/payouts/summary?mentorId=${mentorId}`);
-        const sData = await sRes.json();
-        const hRes = await fetch(`http://localhost:5000/api/payouts?mentorId=${mentorId}`);
-        const hData = await hRes.json();
-        if (isMounted) {
-          setSummary(sData);
-          setHistory(Array.isArray(hData) ? hData : []);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error(e);
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchInitial();
-    return () => { isMounted = false; };
-  }, [mentorId]);
-
-  const requestPayout = async () => {
-    const res = await fetch(`http://localhost:5000/api/payouts/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mentorId })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.message || "Koi eligible balance nahi hai");
+    if (!token || !mentorId) {
+      setMessage("Please log in with your mentor account.");
       return;
     }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [summaryRes, payoutsRes] = await Promise.all([
+        fetch(
+          `${API}/payouts/summary?mentorId=${encodeURIComponent(mentorId)}`,
+          { headers }
+        ),
+        fetch(`${API}/payouts/${mentorId}`, { headers }),
+      ]);
+
+      const summaryData = await summaryRes.json();
+      const payoutsData = await payoutsRes.json();
+
+      if (!summaryRes.ok) {
+        throw new Error(summaryData.message || "Unable to load payout summary");
+      }
+
+      if (!payoutsRes.ok) {
+        throw new Error(payoutsData.message || "Unable to load payout history");
+      }
+
+      setSummary({
+        availableBalance: Number(summaryData.availablePaise || 0) / 100,
+        totalPaid: Array.isArray(payoutsData.payouts)
+          ? payoutsData.payouts
+              .filter((p) => p.status === "PAID")
+              .reduce((sum, p) => sum + Number(p.amountPaise || 0), 0) / 100
+          : 0,
+        processing: Array.isArray(payoutsData.payouts)
+          ? payoutsData.payouts
+              .filter((p) =>
+                ["PENDING", "APPROVED", "PROCESSING"].includes(p.status)
+              )
+              .reduce((sum, p) => sum + Number(p.amountPaise || 0), 0) / 100
+          : 0,
+      hold: Number(summaryData.holdPaise || 0) / 100,
+      });
+
+      setPayouts(Array.isArray(payoutsData.payouts) ? payoutsData.payouts : []);
+    } catch (error) {
+      setMessage(error.message || "Unable to load payout details.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+useEffect(() => {
+  const timer = setTimeout(() => {
     load();
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [load]);
+
+  const requestPayout = async () => {
+    const token = localStorage.getItem("token");
+    setRequesting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API}/payouts/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amountPaise: Math.round(summary.availableBalance * 100),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Payout request failed");
+      }
+
+      setMessage("Payout request submitted successfully.");
+      await load();
+    } catch (error) {
+      setMessage(error.message || "Payout request failed.");
+    } finally {
+      setRequesting(false);
+    }
   };
 
   return (
-    <div className="payout-page">
-      <div className="payout-container">
-        <div className="payout-header">
-          <h1>MENTOR FINANCE</h1>
-          <button className="refresh-btn" onClick={load}>↻ Refresh</button>
+    <main className="payout-page">
+      <section className="payout-heading">
+        <div>
+          <span className="payout-eyebrow">THRONE8 · MENTOR FINANCE</span>
+          <h1>Payouts & Transfers</h1>
+          <p>Track your eligible earnings, payout requests and transfers.</p>
         </div>
-        <p className="payout-sub">Track your earnings and payout activity in one place.</p>
+        <button className="payout-refresh" onClick={load} disabled={loading}>
+          ↻ {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </section>
 
-        <div className="payout-cards">
-          <div className="payout-card">
-            <label>Available balance</label>
-            <strong>₹{summary.availableBalance?.toFixed(2)}</strong>
-            <small>Currently available</small>
+      {message && <div className="payout-message" role="status">{message}</div>}
+
+      <section className="payout-cards">
+        <article className="payout-card payout-available">
+          <span>Available balance</span>
+          <strong>{money(summary.availableBalance)}</strong>
+          <small>Ready to request</small>
+        </article>
+        <article className="payout-card">
+          <span>Total paid</span>
+          <strong>{money(summary.totalPaid)}</strong>
+          <small>Successful payouts</small>
+        </article>
+        <article className="payout-card">
+          <span>Processing</span>
+          <strong>{money(summary.processing)}</strong>
+          <small>Pending and active requests</small>
+        </article>
+        <article className="payout-card">
+          <span>15-day hold</span>
+          <strong>{money(summary.hold)}</strong>
+          <small>Not yet available for payout</small>
+        </article>
+      </section>
+
+      <section className="payout-request-panel">
+        <div>
+          <h2>Request a payout</h2>
+          <p>Only eligible earnings can be requested. Requests are subject to verification.</p>
+        </div>
+        <button
+          className="payout-request-button"
+          onClick={requestPayout}
+          disabled={requesting || loading || summary.availableBalance <= 0}
+        >
+          {requesting ? "Submitting..." : "Request Payout"}
+        </button>
+      </section>
+
+      <section className="payout-history">
+        <div className="payout-history-heading">
+          <div>
+            <h2>Payout history</h2>
+            <p>Your recorded payout requests and transfer status.</p>
           </div>
-          <div className="payout-card">
-            <label>Total paid out ↗</label>
-            <strong>₹{summary.totalPaidOut?.toFixed(2)}</strong>
-            <small>Based on listed payout records</small>
-          </div>
-          <div className="payout-card">
-            <label>Payout activity ◷</label>
-            <strong>{summary.pendingCount}</strong>
-            <small>Pending or processing (₹{summary.pendingAmount?.toFixed(2)})</small>
-          </div>
+          <span>{payouts.length} records</span>
         </div>
 
-        <button className="request-btn" onClick={requestPayout}>Request Payout</button>
-
-        <h2 className="payout-title">Payout history</h2>
-        <p className="payout-desc">Your recorded payout transactions</p>
-
-        {loading ? (
-          <p style={{ color: "#9CA3AF" }}>Loading...</p>
-        ) : history.length === 0 ? (
-          <div className="empty-state">
-            <div className="icon">₹</div>
-            <p>No payouts yet</p>
-            <small>Your payout transactions will appear here once they are recorded.</small>
+        {payouts.length === 0 ? (
+          <div className="payout-empty">
+            <div className="payout-empty-icon">↗</div>
+            <h3>No payouts yet</h3>
+            <p>Your payout requests will appear here after you submit one.</p>
           </div>
         ) : (
-          <div className="payout-table">
-            <table>
+          <div className="payout-table-wrap">
+            <table className="payout-table">
               <thead>
                 <tr>
+                  <th>Request ID</th>
                   <th>Date</th>
                   <th>Amount</th>
+                  <th>Transfer ID</th>
                   <th>Status</th>
-                  <th>Reference</th>
                 </tr>
               </thead>
               <tbody>
-                {history.map(p => (
-                  <tr key={p._id}>
-                    <td>{new Date(p.createdAt).toLocaleDateString("en-IN")}</td>
-                    <td style={{ fontWeight: "700" }}>₹{(p.amountPaise/100).toFixed(2)}</td>
+                {payouts.map((payout) => (
+                  <tr key={payout._id}>
+                    <td>{String(payout._id).slice(-8).toUpperCase()}</td>
                     <td>
-                      <span className={p.status === "PAID" ? "status-paid" : "status-pending"}>
-                        {p.status}
+                      {payout.createdAt
+                        ? new Date(payout.createdAt).toLocaleDateString("en-IN")
+                        : "—"}
+                    </td>
+                    <td>{money(Number(payout.amountPaise || 0) / 100)}</td>
+                    <td>{payout.providerPayoutId || "Not assigned"}</td>
+                    <td>
+                      <span className={`payout-status status-${String(payout.status || "").toLowerCase()}`}>
+                        {payout.status || "UNKNOWN"}
                       </span>
                     </td>
-                    <td style={{ color: "#9CA3AF" }}>{p.providerPayoutId || "-"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-
-        <p className="payout-footer">THRONE8 · Mentor dashboard<br/>Amounts displayed in INR</p>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

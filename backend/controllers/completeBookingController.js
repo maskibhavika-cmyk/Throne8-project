@@ -4,6 +4,8 @@ const Booking = require("../models/Booking");
 const Earning = require("../models/Earning");
 const Refund = require("../models/Refund");
 const { payoutQueue } = require("../jobs/payoutQueue");
+const createNotification = require("../utils/createNotification");
+
 // Get booking details
 const getBookingById = async (req, res) => {
   try {
@@ -215,7 +217,13 @@ const completeBooking = async (req, res) => {
       earning.status = "ON_HOLD";
       await earning.save();
     }
-
+await createNotification({
+  recipient: completedBooking.student,
+  type: "BOOKING_COMPLETED",
+  title: "Session Completed",
+  message: "Your mentoring session has been completed successfully.",
+  link: "/my-bookings",
+});
 
     return res.status(200).json({
       success: true,

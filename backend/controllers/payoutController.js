@@ -27,26 +27,70 @@ const getMentorPayouts = async (req, res) => {
       });
     }
 
-    const payouts = await Payout.find({ mentor: mentorId })
-      .sort({ createdAt: -1 });
+    const [payouts, earnings] = await Promise.all([
+      Payout.find({ mentor: mentorId }).sort({ createdAt: -1 }),
+      Earning.find({ mentor: mentorId }).populate({
+        path: "booking",
+        select: "status paymentStatus payoutEligibleAt",
+      }),
+    ]);
 
-    const eligibleEarnings = await Earning.find({
-      mentor: mentorId,
-      status: "ELIGIBLE",
-    });
+    let availablePaise = 0;
+    let holdPaise = 0;
 
-    const availablePaise = eligibleEarnings.reduce(
-      (total, earning) => total + earning.amountPaise,
-      0
-    );
+    for (const earning of earnings) {
+      const amount = Number(earning.amountPaise || 0);
+      const booking = earning.booking;
+
+      if (earning.status === "ELIGIBLE") {
+        availablePaise += amount;
+      }
+
+      if (earning.status === "ON_HOLD") {
+        holdPaise += amount;
+      } else if (
+        earning.status === "PENDING" &&
+        booking?.status === "COMPLETED" &&
+        booking?.paymentStatus === "PAID"
+      ) {
+        const eligibleDate =
+          earning.eligibleAt || booking.payoutEligibleAt;
+
+        if (
+          !eligibleDate ||
+          new Date(eligibleDate).getTime() > Date.now()
+        ) {
+          holdPaise += amount;
+        }
+      }
+    }
+
+    const totalPaidPaise = payouts
+      .filter((p) => p.status === "PAID")
+      .reduce((sum, p) => sum + Number(p.amountPaise || 0), 0);
+
+    const processingPaise = payouts
+      .filter((p) =>
+        ["PENDING", "APPROVED", "PROCESSING"].includes(p.status)
+      )
+      .reduce((sum, p) => sum + Number(p.amountPaise || 0), 0);
+
+    const requestedPaise = payouts
+      .filter((p) =>
+        ["PENDING", "APPROVED", "PROCESSING"].includes(p.status)
+      )
+      .reduce((sum, p) => sum + Number(p.amountPaise || 0), 0);
 
     return res.status(200).json({
       success: true,
-      availablePaise,
+      availablePaise: Math.max(0, availablePaise - requestedPaise),
+      holdPaise,
+      totalPaidPaise,
+      processingPaise,
       payouts,
     });
   } catch (error) {
-    console.error("Get mentor payouts error:", error.message);
+    console.error("Get mentor payouts error:", error);
     return res.status(500).json({
       success: false,
       message: "Unable to fetch payouts",
@@ -75,7 +119,7 @@ const createPayoutRequest = async (req, res) => {
       });
     }
 
-    const amountPaise = Number(req.body.amountPaise);
+    const amountPaise = Number(req.body?.amountPaise);
 
     if (
       !Number.isSafeInteger(amountPaise) ||
@@ -87,36 +131,34 @@ const createPayoutRequest = async (req, res) => {
       });
     }
 
-    const eligibleEarnings = await Earning.find({
-      mentor: mentorId,
-      status: "ELIGIBLE",
-    });
+    const [eligibleEarnings, pendingPayouts] = await Promise.all([
+      Earning.find({ mentor: mentorId, status: "ELIGIBLE" }),
+      Payout.find({
+        mentor: mentorId,
+        status: { $in: ["PENDING", "APPROVED", "PROCESSING"] },
+      }),
+    ]);
 
     const availablePaise = eligibleEarnings.reduce(
-      (total, earning) => total + earning.amountPaise,
+      (sum, earning) => sum + Number(earning.amountPaise || 0),
       0
     );
-
-    const pendingPayouts = await Payout.find({
-      mentor: mentorId,
-      status: {
-        $in: ["PENDING", "APPROVED", "PROCESSING"],
-      },
-    });
 
     const alreadyRequestedPaise = pendingPayouts.reduce(
-      (total, payout) => total + payout.amountPaise,
+      (sum, payout) => sum + Number(payout.amountPaise || 0),
       0
     );
 
-    const requestablePaise =
-      availablePaise - alreadyRequestedPaise;
+    const requestablePaise = Math.max(
+      0,
+      availablePaise - alreadyRequestedPaise
+    );
 
     if (amountPaise > requestablePaise) {
       return res.status(400).json({
         success: false,
         message: "Payout amount exceeds available eligible earnings",
-        availablePaise: Math.max(0, requestablePaise),
+        availablePaise: requestablePaise,
       });
     }
 
@@ -132,7 +174,7 @@ const createPayoutRequest = async (req, res) => {
       payout,
     });
   } catch (error) {
-    console.error("Create payout request error:", error.message);
+    console.error("Create payout request error:", error);
     return res.status(500).json({
       success: false,
       message: "Unable to create payout request",
