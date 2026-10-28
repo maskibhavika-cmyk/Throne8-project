@@ -1,7 +1,7 @@
 
 const mongoose = require("mongoose");
 
-const webhookEventSchema = new mongoose.Schema(
+const webhookEventSchema  = new mongoose.Schema(
   {
     eventId: {
       type: String,
@@ -27,7 +27,7 @@ const webhookEventSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model(
+module.exports  =  mongoose.model(
   "WebhookEvent",
   webhookEventSchema
 );
