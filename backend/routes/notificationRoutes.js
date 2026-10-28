@@ -14,4 +14,5 @@ router.get("/", authMiddleware, getMyNotifications);
 router.patch("/:id/read", authMiddleware, markNotificationRead);
 
 router.post("/test", authMiddleware, createNotification);
+
 module.exports = router;
