@@ -6,13 +6,13 @@ const Booking = require("../models/Booking");
 const Notification = require("../models/Notification");
 const receiveWebhook = async (req, res) => {
   try {
-    const signature = req.headers["x-razorpay-signature"];
-    const eventId = req.headers["x-razorpay-event-id"];
+    const signature  =  req.headers["x-razorpay-signature"];
+    const eventId  =  req.headers["x-razorpay-event-id"];
 
     if (!signature || !process.env.RAZORPAY_WEBHOOK_SECRET) {
-      return res.status(400).json({
+      return  res.status(400).json({
         success: false,
-        message: "Webhook signature configuration missing",
+        message: "Webhook  signature  configuration missing",
       });
     }
 
@@ -23,7 +23,7 @@ const receiveWebhook = async (req, res) => {
       });
     }
 
-    const expectedSignature = crypto
+    const  expectedSignature  =  crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
       .update(req.body)
       .digest("hex");
