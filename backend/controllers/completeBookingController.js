@@ -217,7 +217,7 @@ const completeBooking = async (req, res) => {
       earning.status = "ON_HOLD";
       await earning.save();
     }
-await createNotification({
+await  createNotification ({
   recipient: completedBooking.student,
   type: "BOOKING_COMPLETED",
   title: "Session Completed",
@@ -225,7 +225,7 @@ await createNotification({
   link: "/my-bookings",
 });
 
-    return res.status(200).json({
+    return  res.status(200).json({
       success: true,
       message: "Booking completed and earning recorded",
       booking: completedBooking,
