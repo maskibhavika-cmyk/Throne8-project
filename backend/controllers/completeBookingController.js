@@ -7,18 +7,18 @@ const { payoutQueue } = require("../jobs/payoutQueue");
 const createNotification = require("../utils/createNotification");
 
 // Get booking details
-const getBookingById = async (req, res) => {
+const  getBookingById  =  async (req, res) => {
   try {
-    const { bookingId } = req.params;
+    const  { bookingId }  =  req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+    if  (!mongoose.Types.ObjectId.isValid(bookingId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid booking ID",
+        message:   "Invalid booking ID",
       });
     }
 
-    const booking = await Booking.findById(bookingId)
+    const  booking = await  Booking.findById(bookingId)
       .populate("mentor", "name email")
       .select("-__v");
 
