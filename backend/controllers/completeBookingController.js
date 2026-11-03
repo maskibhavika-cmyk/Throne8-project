@@ -29,15 +29,15 @@ const  getBookingById  =  async (req, res) => {
       });
     }
 
-    const userId = req.user?._id || req.user?.id || req.user?.userId;
-    const role = req.user?.role;
+    const  userId = req.user?._id || req.user?.id || req.user?.userId;
+    const  role = req.user?.role;
 
 console.log("Logged-in role:", role);
 console.log("Logged-in userId:", String(userId));
 console.log("Booking mentorId:", String(booking.mentor));
 
     if (!userId || !["student", "mentor", "admin"].includes(role)) {
-      return res.status(403).json({
+      return  res.status(403).json({
         success: false,
         message: "Access denied",
       });
@@ -46,7 +46,7 @@ console.log("Booking mentorId:", String(booking.mentor));
     const isStudent =
       role === "student" &&
       String(booking.student) === String(userId);
-
+ 
     const isAssignedMentor =
       role === "mentor" &&
       String(booking.mentor?._id || booking.mentor) === String(userId);
@@ -60,7 +60,7 @@ console.log("Booking mentorId:", String(booking.mentor));
       });
     }
 
-    return res.status(200).json({
+    return  res.status(200).json({
       success: true,
       booking,
     });
@@ -75,7 +75,7 @@ console.log("Booking mentorId:", String(booking.mentor));
 };
 
 // Complete a confirmed and paid booking
-const completeBooking = async (req, res) => {
+const  completeBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
 
@@ -86,7 +86,7 @@ const completeBooking = async (req, res) => {
       });
     }
 
-    const userId = req.user?._id || req.user?.id || req.user?.userId;
+    const  userId = req.user?._id || req.user?.id || req.user?.userId;
     const role = req.user?.role;
 
     if (!userId || !["mentor", "admin"].includes(role)) {
