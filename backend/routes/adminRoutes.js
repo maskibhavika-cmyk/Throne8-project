@@ -1,15 +1,15 @@
 
-const express = require("express");
-const router = express.Router();
+const  express = require("express");
+const  router = express.Router();
 
 const {
-  getAdminStats,
-  getAllUsers,getAllBookings,getAllPayments, verifyMentorAccount
+   getAdminStats,
+   getAllUsers,getAllBookings,getAllPayments, verifyMentorAccount
 } = require("../controllers/adminController");
 
 const {
-  authMiddleware,
-  authorizeRoles,
+   authMiddleware,
+   authorizeRoles,
 } = require("../middleware/authMiddleware");
 
 router.get(
