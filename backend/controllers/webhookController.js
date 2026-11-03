@@ -1,48 +1,48 @@
 
-const crypto = require("crypto");
-const WebhookEvent = require("../models/WebhookEvent");
-const Payment = require("../models/Payment");
-const Booking = require("../models/Booking");
-const Notification = require("../models/Notification");
+const  crypto = require("crypto");
+const  WebhookEvent = require("../models/WebhookEvent");
+const  Payment = require("../models/Payment");
+const  Booking = require("../models/Booking");
+const  Notification = require("../models/Notification");
 const receiveWebhook = async (req, res) => {
   try {
-    const signature  =  req.headers["x-razorpay-signature"];
-    const eventId  =  req.headers["x-razorpay-event-id"];
+    const  signature  =  req.headers["x-razorpay-signature"];
+    const  eventId  =  req.headers["x-razorpay-event-id"];
 
-    if (!signature || !process.env.RAZORPAY_WEBHOOK_SECRET) {
+    if  (!signature || !process.env.RAZORPAY_WEBHOOK_SECRET) {
       return  res.status(400).json({
         success: false,
         message: "Webhook  signature  configuration missing",
       });
     }
 
-    if (!Buffer.isBuffer(req.body)) {
+    if  (!Buffer.isBuffer(req.body)) {
       return res.status(400).json({
-        success: false,
+         success: false,
         message: "Raw webhook body is not configured",
       });
     }
 
-    const  expectedSignature  =  crypto
+    const   expectedSignature  =  crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
       .update(req.body)
       .digest("hex");
 
-    const received = Buffer.from(signature, "hex");
-    const expected = Buffer.from(expectedSignature, "hex");
+    const  received = Buffer.from(signature, "hex");
+    const  expected = Buffer.from(expectedSignature, "hex");
 
     if (
-      received.length !== expected.length ||
+       received.length !== expected.length ||
       !crypto.timingSafeEqual(received, expected)
     ) {
-      return res.status(400).json({
+      return  res.status(400).json({
         success: false,
         message: "Invalid webhook signature",
       });
     }
 
-    const event = JSON.parse(req.body.toString("utf8"));
-    const eventType = event.event;
+    const  event = JSON.parse(req.body.toString("utf8"));
+    const  eventType = event.event;
 
     console.log("Razorpay webhook event:", eventType, eventId);
 
