@@ -1,7 +1,7 @@
 
-const mongoose = require("mongoose");
+const mongoose  =  require("mongoose");
 
-const mentorAccountSchema = new mongoose.Schema(
+const  mentorAccountSchema  =  new mongoose.Schema(
   {
     mentor: {
       type: mongoose.Schema.Types.ObjectId,
@@ -41,7 +41,7 @@ const mentorAccountSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model(
+module.exports  =  mongoose.model(
   "MentorAccount",
   mentorAccountSchema
 );
