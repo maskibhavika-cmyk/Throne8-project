@@ -49,7 +49,7 @@ router.post(
 router.post(
   "/refunds/:id/reject",
   authMiddleware,
-  authorizeRoles("admin"),
+  authorizeRoles ("admin"),
   rejectRefund
 );
 
@@ -57,7 +57,7 @@ router.post(
 router.get(
   "/earnings/eligible-mentors",
   authMiddleware,
-  authorizeRoles("admin"),
+  authorizeRoles ("admin"),
   getEligibleMentors
 );
 
@@ -91,8 +91,8 @@ router.post(
 );
 // Mentor: Create payout request
 router.post(
-  "/payouts/request",
-  authMiddleware,
+    "/payouts/request",
+    authMiddleware,
   authorizeRoles("mentor"),
   createPayoutRequest
 );
