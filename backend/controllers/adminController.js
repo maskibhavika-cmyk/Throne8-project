@@ -6,7 +6,7 @@ const MentorAccount = require("../models/MentorAccount");
 // Admin Dashboard Statistics
 const getAdminStats = async (req, res) => {
   try {
-    const [totalUsers, totalBookings, totalPayments, paidPayments] =
+    const  [totalUsers, totalBookings, totalPayments, paidPayments] =
       await  Promise.all([
         User.countDocuments(),
         Booking.countDocuments(),
@@ -14,7 +14,7 @@ const getAdminStats = async (req, res) => {
         Payment.find({ status: "PAID" }).select("amountPaise"),
       ]);
 
-    const totalRevenuePaise = paidPayments.reduce(
+    const  totalRevenuePaise = paidPayments.reduce(
       (total, payment) => total + (payment.amountPaise || 0),
       0
     );
@@ -35,7 +35,7 @@ const getAdminStats = async (req, res) => {
         mentorShare,
       },
     });
-  }  catch (error) {
+  }   catch  (error) {
     console.error  ("Admin stats error:", error.message);
     res.status(500).json({
       success: false,
@@ -45,7 +45,7 @@ const getAdminStats = async (req, res) => {
 };
 
 // Get All Users
-const  getAllUsers = async (req, res) => {
+const   getAllUsers = async (req, res) => {
   try {
     const  users = await User.find()
       .select("-password")
@@ -86,7 +86,7 @@ const  getAllBookings = async (req, res) => {
 };
 
 // Get All Payments
-const getAllPayments = async (req, res) => {
+const  getAllPayments = async (req, res) => {
   try {
     const payments = await Payment.find()
       .populate("student", "name email")
