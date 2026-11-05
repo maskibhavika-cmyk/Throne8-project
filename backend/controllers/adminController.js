@@ -36,7 +36,7 @@ const getAdminStats = async (req, res) => {
       },
     });
   }  catch (error) {
-    console.error ("Admin stats error:", error.message);
+    console.error  ("Admin stats error:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch admin statistics",
@@ -45,9 +45,9 @@ const getAdminStats = async (req, res) => {
 };
 
 // Get All Users
-const getAllUsers = async (req, res) => {
+const  getAllUsers = async (req, res) => {
   try {
-    const users = await User.find()
+    const  users = await User.find()
       .select("-password")
       .sort({ createdAt: -1 });
 
@@ -55,7 +55,7 @@ const getAllUsers = async (req, res) => {
       success: true,
       users,
     });
-  } catch (error) {
+  }  catch (error) {
     console.error("Get users error:", error.message);
     res.status(500).json({
       success: false,
@@ -65,9 +65,9 @@ const getAllUsers = async (req, res) => {
 };
 
 // Get All Bookings
-const getAllBookings = async (req, res) => {
+const  getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
+    const  bookings = await Booking.find()
       .populate("student", "name email")
       .populate("mentor", "name email")
       .sort({ createdAt: -1 });
@@ -76,7 +76,7 @@ const getAllBookings = async (req, res) => {
       success: true,
       bookings,
     });
-  } catch (error) {
+  }  catch (error) {
     console.error("Get bookings error:", error.message);
     res.status(500).json({
       success: false,
