@@ -7,7 +7,7 @@ const MentorAccount = require("../models/MentorAccount");
 const getAdminStats = async (req, res) => {
   try {
     const [totalUsers, totalBookings, totalPayments, paidPayments] =
-      await Promise.all([
+      await  Promise.all([
         User.countDocuments(),
         Booking.countDocuments(),
         Payment.countDocuments(),
@@ -19,9 +19,9 @@ const getAdminStats = async (req, res) => {
       0
     );
 
-    const totalRevenue = totalRevenuePaise / 100;
-    const commission = totalRevenue * 0.2;
-    const mentorShare = totalRevenue * 0.8;
+    const  totalRevenue = totalRevenuePaise / 100;
+    const  commission = totalRevenue * 0.2;
+    const  mentorShare = totalRevenue * 0.8;
 
     res.json({
       success: true,
@@ -35,8 +35,8 @@ const getAdminStats = async (req, res) => {
         mentorShare,
       },
     });
-  } catch (error) {
-    console.error("Admin stats error:", error.message);
+  }  catch (error) {
+    console.error ("Admin stats error:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch admin statistics",
